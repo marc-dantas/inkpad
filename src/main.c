@@ -122,6 +122,10 @@ void draw_canvas(Stroke* s, Vector2 line[2], Vector2 mouse_current_position, Vec
 	}
 }
 
+void draw_stroke_preview(Vector2 pos, Stroke* s) {
+	DrawCircleLinesV(pos, s->thick/2, WHITE);
+}
+
 int main(void) {
 	bool grid = true;
 	Vector2 line[2];
@@ -161,9 +165,12 @@ int main(void) {
 			if (IsKeyPressed(KEY_ZERO))  s->thick = DEFAULT_THICK/2;
 
 			// Modes
-			if (IsKeyPressed(KEY_A))  s->mode = MODE_FREE;
-			if (IsKeyPressed(KEY_L))  s->mode = MODE_LINE;
-			if (IsKeyPressed(KEY_X))  s->mode = MODE_ERASE;
+			if (IsKeyPressed(KEY_A)) s->mode = MODE_FREE;
+			if (IsKeyPressed(KEY_L)) s->mode = MODE_LINE;
+			if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
+
+			// Draw stroke preview
+			draw_stroke_preview(mouse_current_position, s);
 
 			// Draw grid
 			if (IsKeyPressed(KEY_G)) grid = !grid;
