@@ -105,6 +105,7 @@ int main(void) {
 			if (IsKeyPressed(KEY_THREE)) s->thick = DEFAULT_THICK + 10.0f;
 			if (IsKeyPressed(KEY_FOUR))  s->thick = DEFAULT_THICK + 15.0f;
 			if (IsKeyPressed(KEY_FIVE))  s->thick = DEFAULT_THICK + 20.0f;
+			if (IsKeyPressed(KEY_ZERO))  s->thick = DEFAULT_THICK/2;
 
 			// Draw grid
 			if (IsKeyPressed(KEY_G)) grid = !grid;
