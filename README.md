@@ -77,8 +77,11 @@ To set the thickness of the stroke, press one of the keys to set the thickness:
 Status panel is the black area below the drawing canvas, it contains all information
 about the current stroke and the color options.
 
+### Clear screen
+To clear the entire canvas, press `C`.
+
 ### Grid
-To show a grid behind the canvas, press `G`.
+To toggle grid behind the canvas, press `G`.
 
 ---
 
