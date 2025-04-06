@@ -17,6 +17,7 @@
 typedef enum {
 	MODE_FREE,
 	MODE_LINE,
+	MODE_ERASE,
 } Mode;
 
 typedef struct {
@@ -104,6 +105,17 @@ void draw_canvas(Stroke* s, Vector2 line[2], Vector2 mouse_current_position, Vec
 		}
 		break;
 	}
+	case MODE_ERASE: {
+		SetMouseCursor(MOUSE_CURSOR_NOT_ALLOWED);
+		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+			draw_stroke(mouse_last_position, mouse_current_position, &(Stroke) {
+				MODE_ERASE,
+				s->thick,
+				BGCOLOR,
+			});
+		}
+		break;
+	}
 	}
 	if (IsKeyDown(KEY_C)) {
 		ClearBackground(BGCOLOR);	
@@ -151,6 +163,7 @@ int main(void) {
 			// Modes
 			if (IsKeyPressed(KEY_A))  s->mode = MODE_FREE;
 			if (IsKeyPressed(KEY_L))  s->mode = MODE_LINE;
+			if (IsKeyPressed(KEY_X))  s->mode = MODE_ERASE;
 
 			// Draw grid
 			if (IsKeyPressed(KEY_G)) grid = !grid;
