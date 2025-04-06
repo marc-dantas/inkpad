@@ -66,8 +66,7 @@ bool check_boundingbox(Rectangle bb, Vector2 pos) {
 }
 
 int main(void) {
-	bool drawing_line = false;
-	bool grid = false;
+	bool grid = true;
 	Stroke *s = &(Stroke){
 		DEFAULT_THICK,
 		GREEN,
