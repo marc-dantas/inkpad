@@ -1,4 +1,4 @@
-<65;94;21M#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include "raylib.h"
 
@@ -58,9 +58,6 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 		DrawTextEx(global_font, "Erase", texpos, 30.0f, 1.0f, WHITE);
 		break;
 	}
-	char thicktext[2];
-	sprintf(&thicktext, "%.2f", s->thick);
-	DrawTextEx(global_font, thicktext, (Vector2) { x, y + h + 5 }, 15.0f, 1.0f, WHITE);
 }
 
 void draw_grid(int startX, int startY, int cellWidth, int cellHeight, int columns, int rows, Color color)
@@ -77,7 +74,7 @@ void draw_grid(int startX, int startY, int cellWidth, int cellHeight, int column
 
 void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, Color color) {
 	DrawRectangle(x, y, 50, 50, color);
-	DrawRectangleLines(x-1, y-1, 52, 52, GRAY);
+	DrawRectangleLines(x-1, y-1, 52, 52, WHITE);
 	boundingbox->x = x;
 	boundingbox->y = y;
 	boundingbox->width = 50;
@@ -154,7 +151,6 @@ int main(void) {
 	};
 	Vector2 mouse_current_position, mouse_last_position;
 
-
 	InitWindow(W_WID, W_HEI, "Inkpad");
 
 	global_font = LoadFont("assets/Px437_IBM_VGA_9x16.ttf");
@@ -174,8 +170,7 @@ int main(void) {
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground(BLACK);
-			// Show stroke information
-			show_stroke(PANEL_PADDING, canvas.texture.height + PANEL_PADDING, s);
+			
 			// Thickness Operations
 			if (IsKeyPressed(KEY_ONE))   s->thick = DEFAULT_THICK;
 			if (IsKeyPressed(KEY_TWO))   s->thick = DEFAULT_THICK + 5.0f;
@@ -189,8 +184,6 @@ int main(void) {
 			if (IsKeyPressed(KEY_L)) s->mode = MODE_LINE;
 			if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
 
-			// Draw stroke preview
-			draw_stroke_preview(mouse_current_position, s);
 
 			// Draw grid
 			if (IsKeyPressed(KEY_G)) grid = !grid;
@@ -204,16 +197,24 @@ int main(void) {
 					WHITE
 				});
 			}
+
+			// Show stroke information
+			DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			show_stroke(PANEL_PADDING, canvas.texture.height + 20 + PANEL_PADDING, s);
 			
 			// Color options
 			Rectangle bb = {0};
 			int starting_pos = bb.x + bb.width + 150;
+			DrawTextEx(global_font, "Colors", (Vector2) { PANEL_PADDING + starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			for (size_t i = 0; i < sizeof(color_options)/sizeof(Color); i++) {
-				draw_color_option(&bb, PANEL_PADDING + starting_pos + bb.width*i, canvas.texture.height + PANEL_PADDING, color_options[i]);
+				draw_color_option(&bb, PANEL_PADDING + starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING, color_options[i]);
 				if (check_boundingbox(bb, mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					s->color = color_options[i];
 				}
 			}
+			
+			// Draw stroke preview
+			draw_stroke_preview(mouse_current_position, s);
 
 			// Draw canvas
 			DrawTextureRec(
@@ -231,3 +232,7 @@ int main(void) {
 	CloseWindow();
 	return 0;
 }
+
+
+
+
