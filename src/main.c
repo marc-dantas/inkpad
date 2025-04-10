@@ -1,4 +1,4 @@
-#include <stdio.h>
+<65;94;21M#include <stdio.h>
 #include <stdlib.h>
 #include "raylib.h"
 
@@ -77,7 +77,7 @@ void draw_grid(int startX, int startY, int cellWidth, int cellHeight, int column
 
 void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, Color color) {
 	DrawRectangle(x, y, 50, 50, color);
-	DrawRectangleLinesEx((Rectangle){x-1, y-1, 52, 52}, 5.0f, GRAY);
+	DrawRectangleLines(x-1, y-1, 52, 52, GRAY);
 	boundingbox->x = x;
 	boundingbox->y = y;
 	boundingbox->width = 50;
