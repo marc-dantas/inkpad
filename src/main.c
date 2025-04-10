@@ -64,11 +64,11 @@ void draw_grid(int startX, int startY, int cellWidth, int cellHeight, int column
 {
     for (int i = 0; i <= columns; i++) {
         int x = startX + i * cellWidth;
-        DrawLine(x, startY, x, startY + rows * cellHeight, color);
+        DrawLineEx((Vector2){ x, startY },(Vector2) { x, startY + rows * cellHeight }, 4.0f, color);
     }
     for (int i = 0; i <= rows; i++) {
         int y = startY + i * cellHeight;
-        DrawLine(startX, y, startX + columns * cellWidth, y, color);
+        DrawLineEx((Vector2){ startX, y }, (Vector2){ startX + columns * cellWidth, y }, 4.0f, color);
     }
 }
 
@@ -187,7 +187,7 @@ int main(void) {
 
 			// Draw grid
 			if (IsKeyPressed(KEY_G)) grid = !grid;
-			if (grid) draw_grid(0, 0, canvas.texture.width/GRID_ROWS, canvas.texture.height/GRID_COLS, GRID_ROWS, GRID_COLS, BGCOLOR);
+			if (grid) draw_grid(0, 0, canvas.texture.width/GRID_ROWS, canvas.texture.height/GRID_COLS, GRID_ROWS, GRID_COLS, (Color) {10,10,10,255});
 
 			// Line preview draw
 			if (s->mode == MODE_LINE && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
