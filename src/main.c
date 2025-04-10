@@ -26,6 +26,8 @@ typedef struct {
 	Color color;
 } Stroke;
 
+Font global_font;
+
 void draw_stroke(Vector2 start, Vector2 end, Stroke *s) {
 	float thick = s->thick;
 	Color color = s->color;
@@ -38,11 +40,27 @@ void draw_message(unsigned int x, unsigned int y, char* text) {
 }
 
 void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
-	int w = 70;
-	int h = 70;
+	int w = 50;
+	int h = 50;
 	DrawRectangleLines(x, y, w, h, WHITE);
 	DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 	DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
+	DrawTextEx(global_font, "MODE", (Vector2) { x + w + 5, y }, 15.0f, 1.0f, GRAY);
+	Vector2 texpos = (Vector2) { x + w + 5, y+20 };
+	switch (s->mode) {
+	case MODE_FREE:
+		DrawTextEx(global_font, "Free", texpos, 30.0f, 1.0f, WHITE);
+		break;
+	case MODE_LINE:
+		DrawTextEx(global_font, "Line", texpos, 30.0f, 1.0f, WHITE);
+		break;
+	case MODE_ERASE:
+		DrawTextEx(global_font, "Erase", texpos, 30.0f, 1.0f, WHITE);
+		break;
+	}
+	char thicktext[2];
+	sprintf(&thicktext, "%.2f", s->thick);
+	DrawTextEx(global_font, thicktext, (Vector2) { x, y + h + 5 }, 15.0f, 1.0f, WHITE);
 }
 
 void draw_grid(int startX, int startY, int cellWidth, int cellHeight, int columns, int rows, Color color)
@@ -136,8 +154,10 @@ int main(void) {
 	};
 	Vector2 mouse_current_position, mouse_last_position;
 
+
 	InitWindow(W_WID, W_HEI, "Inkpad");
 
+	global_font = LoadFont("assets/Px437_IBM_VGA_9x16.ttf");
 	Color color_options[] = { WHITE, RED, GREEN, BLUE, PURPLE };
 	RenderTexture2D canvas = LoadRenderTexture(W_WID, W_HEI - 100);
 	
@@ -187,7 +207,7 @@ int main(void) {
 			
 			// Color options
 			Rectangle bb = {0};
-			int starting_pos = bb.x + bb.width + 80;
+			int starting_pos = bb.x + bb.width + 150;
 			for (size_t i = 0; i < sizeof(color_options)/sizeof(Color); i++) {
 				draw_color_option(&bb, PANEL_PADDING + starting_pos + bb.width*i, canvas.texture.height + PANEL_PADDING, color_options[i]);
 				if (check_boundingbox(bb, mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
