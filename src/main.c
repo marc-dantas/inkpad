@@ -170,7 +170,7 @@ int main(void) {
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground(BLACK);
-			
+			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
 			// Thickness Operations
 			if (IsKeyPressed(KEY_ONE))   s->thick = DEFAULT_THICK;
 			if (IsKeyPressed(KEY_TWO))   s->thick = DEFAULT_THICK + 5.0f;
