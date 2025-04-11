@@ -97,7 +97,9 @@ bool check_boundingbox(Rectangle bb, Vector2 pos) {
 }
 
 void draw_line(Vector2 start, Vector2 end, Stroke* s) {
+	DrawCircleV(start, s->thick/2, s->color);
 	DrawLineEx(start, end, s->thick, s->color);
+	DrawCircleV(end, s->thick/2, s->color);
 }
 
 void draw_canvas(Stroke* s, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
