@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include "raylib.h"
 
-#define W_WID 1280
-#define W_HEI 720
+#define W_WID GetScreenWidth()
+#define W_HEI GetScreenHeight()
 #define BGCOLOR (Color){32, 32, 32, 100}
 
 // Layout constants
@@ -153,6 +153,8 @@ int main(void) {
 	};
 	Vector2 mouse_current_position, mouse_last_position;
 
+
+	SetConfigFlags(FLAG_FULLSCREEN_MODE);
 	InitWindow(W_WID, W_HEI, "Inkpad");
 
 	global_font = LoadFont("assets/Px437_IBM_VGA_9x16.ttf");
@@ -234,7 +236,3 @@ int main(void) {
 	CloseWindow();
 	return 0;
 }
-
-
-
-
