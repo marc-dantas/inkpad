@@ -17,6 +17,7 @@
 typedef enum {
 	MODE_FREE,
 	MODE_LINE,
+	MODE_RECT,
 	MODE_ERASE,
 } Mode;
 
@@ -56,6 +57,9 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 		break;
 	case MODE_ERASE:
 		DrawTextEx(global_font, "Erase", texpos, 30.0f, 1.0f, WHITE);
+		break;
+	case MODE_RECT:
+		DrawTextEx(global_font, "Rect", texpos, 30.0f, 1.0f, WHITE);
 		break;
 	}
 }
@@ -102,7 +106,11 @@ void draw_line(Vector2 start, Vector2 end, Stroke* s) {
 	DrawCircleV(end, s->thick/2, s->color);
 }
 
-void draw_canvas(Stroke* s, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
+void draw_rect(Rectangle rect, Stroke* s) {
+	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s->thick, s->color);
+}
+
+void draw_canvas(Stroke* s, Rectangle* rect, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
 	switch (s->mode) {
 	case MODE_FREE: {
 		SetMouseCursor(MOUSE_CURSOR_CROSSHAIR);
@@ -119,6 +127,29 @@ void draw_canvas(Stroke* s, Vector2 line[2], Vector2 mouse_current_position, Vec
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
 			line[1] = mouse_current_position;
 			draw_line(line[0], line[1], s);
+		}
+		break;
+	}
+	case MODE_RECT: {
+		SetMouseCursor(MOUSE_CURSOR_ARROW);
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+			rect->x = mouse_current_position.x;
+			rect->y = mouse_current_position.y;
+		}
+		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+			if (mouse_current_position.x < rect->x) {
+				rect->width = rect->x - mouse_current_position.x;
+				rect->x = mouse_current_position.x;
+			} else {	
+				rect->width = mouse_current_position.x - rect->x;
+			}
+			if (mouse_current_position.y < rect->y) {
+				rect->height = rect->y - mouse_current_position.y;
+				rect->y = mouse_current_position.y;
+			} else {
+				rect->height = mouse_current_position.y - rect->y;
+			}
+			draw_rect(*rect, s);
 		}
 		break;
 	}
@@ -146,6 +177,7 @@ void draw_stroke_preview(Vector2 pos, Stroke* s) {
 int main(void) {
 	bool grid = true;
 	Vector2 line[2];
+	Rectangle rect;
 	Stroke *s = &(Stroke){
 		MODE_FREE,
 		DEFAULT_THICK,
@@ -170,7 +202,7 @@ int main(void) {
 	while (!WindowShouldClose()) {
 		mouse_current_position = GetMousePosition();
 		BeginTextureMode(canvas);
-			draw_canvas(s, line, mouse_current_position, mouse_last_position);
+			draw_canvas(s, &rect, line, mouse_current_position, mouse_last_position);
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground(BLACK);
@@ -187,7 +219,7 @@ int main(void) {
 			if (IsKeyPressed(KEY_A)) s->mode = MODE_FREE;
 			if (IsKeyPressed(KEY_L)) s->mode = MODE_LINE;
 			if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
-
+			if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
 
 			// Draw grid
 			if (IsKeyPressed(KEY_G)) grid = !grid;
@@ -196,7 +228,29 @@ int main(void) {
 			// Line preview draw
 			if (s->mode == MODE_LINE && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 				draw_line(line[0], mouse_current_position, &(Stroke){
-					0,
+					MODE_LINE,
+					1.0f,
+					WHITE
+				});
+			}
+
+			// Rectangle preview draw
+			if (s->mode == MODE_RECT && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+				Rectangle preview_rect = rect;
+				if (mouse_current_position.x < preview_rect.x) {
+					preview_rect.width = preview_rect.x - mouse_current_position.x;
+					preview_rect.x = mouse_current_position.x;
+				} else {
+					preview_rect.width = mouse_current_position.x - preview_rect.x;
+				}
+				if (mouse_current_position.y < preview_rect.y) {
+					preview_rect.height = preview_rect.y - mouse_current_position.y;
+					preview_rect.y = mouse_current_position.y;
+				} else {
+					preview_rect.height = mouse_current_position.y - preview_rect.y;
+				}
+				draw_rect(preview_rect, &(Stroke) {
+					MODE_RECT,
 					1.0f,
 					WHITE
 				});
