@@ -27,11 +27,13 @@ Inkpad works by changing **stroke modes**.
 The modes that can be selected are the following:
 - Free: Freehand draw
 - Line: Draw a straight line
+- Rect: Draw a rectangle
 - Erase: Erase drawings on the canvas
 
 To enable the modes, use the following keys:
 - Free: `A`
 - Line: `L`
+- Rect: `R`
 - Erase: `X`
 
 The mouse cursor and the bottom **status panel** will show what mode you are currently in.
@@ -50,6 +52,12 @@ and you will be able to draw freely.
 
 Press and hold left mouse button to define the start of a
 straight line. Release left mouse button to draw the desired line. 
+
+**Rect mode**
+- Cursor: Pointer
+
+Press and hold left mouse button to define the position of the
+rectangle. Release left mouse button to draw the rectangle at that position. 
 
 **Erase mode**
 - Cursor: Not Allowed
