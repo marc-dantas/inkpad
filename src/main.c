@@ -167,7 +167,22 @@ void draw_canvas(Stroke* s, Rectangle* rect, Vector2 line[2], Vector2 mouse_curr
 }
 
 void draw_stroke_preview(Vector2 pos, Stroke* s) {
-	DrawCircleLinesV(pos, s->thick/2, WHITE);
+	Color c = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? s->color : WHITE;
+	switch (s->mode) {
+	case MODE_FREE:
+		DrawCircleLinesV(pos, s->thick/2, c);
+		break;
+	case MODE_LINE:
+		DrawRectangleRec((Rectangle) { pos.x - s->thick/2, pos.y - 1, s->thick, 2 }, c);
+		break;
+	case MODE_RECT:
+		DrawRectangleLinesEx((Rectangle) { pos.x - s->thick/2, pos.y - s->thick/2, s->thick, s->thick }, 1.0f, c);
+		break;
+	case MODE_ERASE:
+		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y - s->thick/2 }, (Vector2) { pos.x + s->thick/2, pos.y + s->thick/2 }, 2.0f, WHITE);
+		DrawLineEx((Vector2) { pos.x + s->thick/2, pos.y - s->thick/2 }, (Vector2) { pos.x - s->thick/2, pos.y + s->thick/2 }, 2.0f, WHITE);
+		break;
+	}
 }
 
 int main(void) {
