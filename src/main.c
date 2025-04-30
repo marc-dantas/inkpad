@@ -113,14 +113,12 @@ void draw_rect(Rectangle rect, Stroke* s) {
 void draw_canvas(Stroke* s, Rectangle* rect, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
 	switch (s->mode) {
 	case MODE_FREE: {
-		SetMouseCursor(MOUSE_CURSOR_CROSSHAIR);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_stroke(mouse_last_position, mouse_current_position, s);
 		}
 		break;
 	}
 	case MODE_LINE: {
-		SetMouseCursor(MOUSE_CURSOR_ARROW);
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			line[0] = mouse_current_position;
 		}
@@ -131,7 +129,6 @@ void draw_canvas(Stroke* s, Rectangle* rect, Vector2 line[2], Vector2 mouse_curr
 		break;
 	}
 	case MODE_RECT: {
-		SetMouseCursor(MOUSE_CURSOR_ARROW);
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			rect->x = mouse_current_position.x;
 			rect->y = mouse_current_position.y;
@@ -154,7 +151,6 @@ void draw_canvas(Stroke* s, Rectangle* rect, Vector2 line[2], Vector2 mouse_curr
 		break;
 	}
 	case MODE_ERASE: {
-		SetMouseCursor(MOUSE_CURSOR_NOT_ALLOWED);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_stroke(mouse_last_position, mouse_current_position, &(Stroke) {
 				MODE_ERASE,
@@ -186,8 +182,9 @@ int main(void) {
 	Vector2 mouse_current_position, mouse_last_position;
 
 
-	SetConfigFlags(FLAG_FULLSCREEN_MODE);
 	InitWindow(W_WID, W_HEI, "Inkpad");
+	ToggleFullscreen();
+	HideCursor();
 
 	global_font = LoadFont("assets/Px437_IBM_VGA_9x16.ttf");
 	Color color_options[] = { WHITE, RED, GREEN, BLUE, PURPLE };
@@ -271,9 +268,6 @@ int main(void) {
 				}
 			}
 			
-			// Draw stroke preview
-			draw_stroke_preview(mouse_current_position, s);
-
 			// Draw canvas
 			DrawTextureRec(
 				canvas.texture,
@@ -282,6 +276,9 @@ int main(void) {
 				(Vector2){0, 0},
 				WHITE
 			);
+
+			// Draw stroke preview
+			draw_stroke_preview(mouse_current_position, s);
 		EndDrawing();
 		mouse_last_position = mouse_current_position;
 	}
