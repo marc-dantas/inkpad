@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "raylib.h"
 
 #define W_WID GetScreenWidth()
@@ -18,6 +19,7 @@ typedef enum {
 	MODE_FREE,
 	MODE_LINE,
 	MODE_RECT,
+	MODE_TEXT,
 	MODE_ERASE,
 } Mode;
 
@@ -26,6 +28,12 @@ typedef struct {
 	float thick;
 	Color color;
 } Stroke;
+
+typedef struct {
+	Vector2 pos;
+	char content[1024];
+	bool active;
+} TextState;
 
 Font global_font;
 
@@ -57,6 +65,9 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 		break;
 	case MODE_ERASE:
 		DrawTextEx(global_font, "Erase", texpos, 30.0f, 1.0f, WHITE);
+		break;
+	case MODE_TEXT:
+		DrawTextEx(global_font, "Text", texpos, 30.0f, 1.0f, WHITE);
 		break;
 	case MODE_RECT:
 		DrawTextEx(global_font, "Rect", texpos, 30.0f, 1.0f, WHITE);
@@ -110,7 +121,7 @@ void draw_rect(Rectangle rect, Stroke* s) {
 	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s->thick, s->color);
 }
 
-void draw_canvas(Stroke* s, Rectangle* rect, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
+void draw_canvas(Stroke* s, TextState* text, Rectangle* rect, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
 	switch (s->mode) {
 	case MODE_FREE: {
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
@@ -150,6 +161,26 @@ void draw_canvas(Stroke* s, Rectangle* rect, Vector2 line[2], Vector2 mouse_curr
 		}
 		break;
 	}
+	case MODE_TEXT: {
+		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+			text->pos = mouse_current_position;
+			text->active = true;
+		}
+		if (text->active) {
+			if (IsKeyPressed(KEY_ENTER)) {
+				DrawTextEx(global_font, text->content, (Vector2) { text->pos.x, text->pos.y - s->thick }, s->thick*2, 1.0f, s->color);
+				memset(text->content, 0, sizeof(text->content));
+				text->active = false;
+			} else if (IsKeyPressed(KEY_BACKSPACE)) {
+				int last = strlen(text->content) > 0 ? strlen(text->content)-1 : 0;
+				text->content[last] = 0;
+			} else {
+				char c = GetCharPressed();
+				text->content[strlen(text->content)] = c;
+			}
+		}
+		break;
+	}
 	case MODE_ERASE: {
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_stroke(mouse_last_position, mouse_current_position, &(Stroke) {
@@ -161,22 +192,44 @@ void draw_canvas(Stroke* s, Rectangle* rect, Vector2 line[2], Vector2 mouse_curr
 		break;
 	}
 	}
-	if (IsKeyDown(KEY_C)) {
+	if (IsKeyDown(KEY_C) && !text->active) {
 		ClearBackground(BGCOLOR);	
 	}
 }
 
-void draw_stroke_preview(Vector2 pos, Stroke* s) {
+void draw_stroke_preview(Vector2 pos, TextState* text, Stroke* s) {
 	Color c = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? s->color : WHITE;
 	switch (s->mode) {
 	case MODE_FREE:
 		DrawCircleLinesV(pos, s->thick/2, c);
 		break;
 	case MODE_LINE:
-		DrawRectangleRec((Rectangle) { pos.x - s->thick/2, pos.y - 1, s->thick, 2 }, c);
+		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y - s->thick/2 }, (Vector2) { pos.x + s->thick/2, pos.y + s->thick/2 }, 3.0f, c);
 		break;
 	case MODE_RECT:
 		DrawRectangleLinesEx((Rectangle) { pos.x - s->thick/2, pos.y - s->thick/2, s->thick, s->thick }, 1.0f, c);
+		break;
+	case MODE_TEXT:
+		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 3.0f, c);
+		if (text->active) {
+			if (!IsKeyPressed(KEY_ENTER)) {
+				int text_wid = MeasureTextEx(global_font, text->content, s->thick*2, 1.0f).x;
+				DrawLineEx(
+					(Vector2) {
+						text->pos.x + text_wid + 2,
+						text->pos.y + s->thick/2 + 2
+					},
+					(Vector2) {
+						text->pos.x + text_wid + 2 + s->thick,
+						text->pos.y + s->thick/2 + 2,
+					},
+					3.0f,
+					c
+				);
+				DrawTextEx(global_font, text->content, (Vector2) { text->pos.x, text->pos.y - s->thick }, s->thick*2, 1.0f, WHITE);
+			}
+		}
+	
 		break;
 	case MODE_ERASE:
 		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y - s->thick/2 }, (Vector2) { pos.x + s->thick/2, pos.y + s->thick/2 }, 2.0f, WHITE);
@@ -204,6 +257,7 @@ int main(void) {
 	global_font = LoadFont("assets/Px437_IBM_VGA_9x16.ttf");
 	Color color_options[] = { WHITE, RED, GREEN, BLUE, PURPLE };
 	RenderTexture2D canvas = LoadRenderTexture(W_WID, W_HEI - 100);
+	TextState text = {0};
 	
 	SetTargetFPS(120);
 
@@ -214,27 +268,34 @@ int main(void) {
 	while (!WindowShouldClose()) {
 		mouse_current_position = GetMousePosition();
 		BeginTextureMode(canvas);
-			draw_canvas(s, &rect, line, mouse_current_position, mouse_last_position);
+			draw_canvas(s, &text, &rect, line, mouse_current_position, mouse_last_position);
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground(BLACK);
 			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
-			// Thickness Operations
-			if (IsKeyPressed(KEY_ONE))   s->thick = DEFAULT_THICK;
-			if (IsKeyPressed(KEY_TWO))   s->thick = DEFAULT_THICK + 5.0f;
-			if (IsKeyPressed(KEY_THREE)) s->thick = DEFAULT_THICK + 10.0f;
-			if (IsKeyPressed(KEY_FOUR))  s->thick = DEFAULT_THICK + 15.0f;
-			if (IsKeyPressed(KEY_FIVE))  s->thick = DEFAULT_THICK + 20.0f;
-			if (IsKeyPressed(KEY_ZERO))  s->thick = DEFAULT_THICK/2;
 
-			// Modes
-			if (IsKeyPressed(KEY_A)) s->mode = MODE_FREE;
-			if (IsKeyPressed(KEY_L)) s->mode = MODE_LINE;
-			if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
-			if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
+			// Input
+			if (!text.active) {
+				// Thickness Operations
+				if (IsKeyPressed(KEY_ONE))   s->thick = DEFAULT_THICK;
+				if (IsKeyPressed(KEY_TWO))   s->thick = DEFAULT_THICK + 5.0f;
+				if (IsKeyPressed(KEY_THREE)) s->thick = DEFAULT_THICK + 10.0f;
+				if (IsKeyPressed(KEY_FOUR))  s->thick = DEFAULT_THICK + 15.0f;
+				if (IsKeyPressed(KEY_FIVE))  s->thick = DEFAULT_THICK + 20.0f;
+				if (IsKeyPressed(KEY_ZERO))  s->thick = DEFAULT_THICK/2;
+
+				// Modes
+				if (IsKeyPressed(KEY_A)) s->mode = MODE_FREE;
+				if (IsKeyPressed(KEY_L)) s->mode = MODE_LINE;
+				if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
+				if (IsKeyPressed(KEY_T)) s->mode = MODE_TEXT;
+				if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
+
+				// Toggle grid
+				if (IsKeyPressed(KEY_G)) grid = !grid;
+			}
 
 			// Draw grid
-			if (IsKeyPressed(KEY_G)) grid = !grid;
 			if (grid) draw_grid(0, 0, canvas.texture.width/GRID_ROWS, canvas.texture.height/GRID_COLS, GRID_ROWS, GRID_COLS, (Color) {10,10,10,255});
 
 			// Line preview draw
@@ -293,7 +354,7 @@ int main(void) {
 			);
 
 			// Draw stroke preview
-			draw_stroke_preview(mouse_current_position, s);
+			draw_stroke_preview(mouse_current_position, &text, s);
 		EndDrawing();
 		mouse_last_position = mouse_current_position;
 	}
