@@ -5,7 +5,7 @@
 
 #define W_WID GetScreenWidth()
 #define W_HEI GetScreenHeight()
-#define BGCOLOR (Color){32, 32, 32, 100}
+#define BGCOLOR (Color){18, 18, 18, 255}
 
 // Layout constants
 #define PANEL_PADDING 15
@@ -272,6 +272,16 @@ int main(void) {
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground(BLACK);
+
+			// Draw canvas
+			DrawTextureRec(
+				canvas.texture,
+			    (Rectangle){0, 0, (float)canvas.texture.width,
+			    -(float)canvas.texture.height},
+				(Vector2){0, 0},
+				WHITE
+			);
+			
 			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
 
 			// Input
@@ -290,13 +300,8 @@ int main(void) {
 				if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
 				if (IsKeyPressed(KEY_T)) s->mode = MODE_TEXT;
 				if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
-
-				// Toggle grid
-				if (IsKeyPressed(KEY_G)) grid = !grid;
 			}
 
-			// Draw grid
-			if (grid) draw_grid(0, 0, canvas.texture.width/GRID_ROWS, canvas.texture.height/GRID_COLS, GRID_ROWS, GRID_COLS, (Color) {10,10,10,255});
 
 			// Line preview draw
 			if (s->mode == MODE_LINE && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
@@ -344,17 +349,8 @@ int main(void) {
 				}
 			}
 			
-			// Draw canvas
-			DrawTextureRec(
-				canvas.texture,
-			    (Rectangle){0, 0, (float)canvas.texture.width,
-			    -(float)canvas.texture.height},
-				(Vector2){0, 0},
-				WHITE
-			);
-
 			// Draw stroke preview
-			draw_stroke_preview(mouse_current_position, &text, s);
+			draw_stroke_preview(mouse_current_position, &text, s);	
 		EndDrawing();
 		mouse_last_position = mouse_current_position;
 	}
