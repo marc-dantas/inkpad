@@ -271,9 +271,9 @@ int main(void) {
 			
 			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
 
-			char pos_text[16];
+			char pos_text[32];
 			sprintf(&pos_text, "X: %.2f Y: %.2f", mouse_current_position.x, mouse_current_position.y);
-			DrawTextEx(global_font, pos_text, (Vector2) { W_WID-210, W_HEI-40 }, 15.0f, 1.0f, WHITE);
+			DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
 
 			// Input
 			if (!text.active) {
