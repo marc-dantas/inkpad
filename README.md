@@ -1,7 +1,7 @@
 # Inkpad
 A simple drawing/whiteboarding software.
 
-<img src="./screenshot.png" width="300" alt="Screenshot">
+<img src="./screenshot.png" width="600" alt="Screenshot">
 
 ## Getting started
 ### Dependencies
