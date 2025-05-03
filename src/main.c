@@ -226,6 +226,7 @@ void draw_stroke_preview(Vector2 pos, TextState* text, Stroke* s) {
 	}
 }
 
+
 int main(void) {
 	Vector2 line[2];
 	Rectangle rect;
@@ -235,7 +236,6 @@ int main(void) {
 		GREEN,
 	};
 	Vector2 mouse_current_position, mouse_last_position;
-
 
 	InitWindow(W_WID, W_HEI, "Inkpad");
 	ToggleFullscreen();
@@ -270,6 +270,10 @@ int main(void) {
 			);
 			
 			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
+
+			char pos_text[16];
+			sprintf(&pos_text, "X: %.2f Y: %.2f", mouse_current_position.x, mouse_current_position.y);
+			DrawTextEx(global_font, pos_text, (Vector2) { W_WID-210, W_HEI-40 }, 15.0f, 1.0f, WHITE);
 
 			// Input
 			if (!text.active) {
