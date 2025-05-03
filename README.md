@@ -28,7 +28,7 @@ The modes that can be selected are the following:
 - Free: Freehand draw
 - Line: Draw a straight line
 - Rect: Draw a rectangle
-- Text: Draw arbitraty text on the canvas
+- Text: Draw arbitrary text on the canvas
 - Erase: Erase drawings on the canvas
 
 To enable the modes, use the following keys:
@@ -84,11 +84,10 @@ To set the thickness of the stroke, press one of the keys to set the thickness:
 Status panel is the black area below the drawing canvas, it contains all information
 about the current stroke and the color options.
 
-### Clear screen
-To clear the entire canvas, press `C`.
+### Other
 
-### Grid
-To toggle grid behind the canvas, press `G`.
+#### Clear screen
+To clear the entire canvas, press `C`.
 
 ---
 
