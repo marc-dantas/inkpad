@@ -75,18 +75,6 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	}
 }
 
-void draw_grid(int startX, int startY, int cellWidth, int cellHeight, int columns, int rows, Color color)
-{
-    for (int i = 0; i <= columns; i++) {
-        int x = startX + i * cellWidth;
-        DrawLineEx((Vector2){ x, startY },(Vector2) { x, startY + rows * cellHeight }, 4.0f, color);
-    }
-    for (int i = 0; i <= rows; i++) {
-        int y = startY + i * cellHeight;
-        DrawLineEx((Vector2){ startX, y }, (Vector2){ startX + columns * cellWidth, y }, 4.0f, color);
-    }
-}
-
 void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, Color color) {
 	DrawRectangle(x, y, 50, 50, color);
 	DrawRectangleLines(x-1, y-1, 52, 52, WHITE);
@@ -239,7 +227,6 @@ void draw_stroke_preview(Vector2 pos, TextState* text, Stroke* s) {
 }
 
 int main(void) {
-	bool grid = true;
 	Vector2 line[2];
 	Rectangle rect;
 	Stroke *s = &(Stroke){
