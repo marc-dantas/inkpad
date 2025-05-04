@@ -226,6 +226,49 @@ void draw_stroke_preview(Vector2 pos, TextState* text, Stroke* s) {
 	}
 }
 
+void draw_help() {
+	char* lines[] = {
+		"Press 0-5 to change stroke thickness.",
+		"Press [A] for Free mode",
+		"Press [R] for Rect mode",
+		"Press [L] for Line mode",
+		"Press [T] for Text mode",
+		"Press [X] for Erase mode",
+		"Press [A] for Free mode",
+		"Press [C] to clear canvas",
+		"Press [H] to toggle this message",
+		"[ESC] to quit"
+	};
+	float font_size = 22.0f;
+	int len = sizeof(lines)/sizeof(lines[0]);
+	char* greater;
+	for (int i = 0; i < len; i++) if (strlen(lines[i]) >= strlen(greater)) greater = lines[i];
+	Vector2 size = MeasureTextEx(global_font, greater, font_size, 1.0f);
+	Vector2 pos = { W_WID/2 - size.x/2, W_HEI/2 - size.y*len/2};
+	for (int i = 0; i < len; i++)
+		DrawTextEx(
+			global_font,
+			lines[i],
+			(Vector2) {
+				pos.x,
+				pos.y + size.y*i + 15
+			},
+			font_size,
+			1.0f,
+			GRAY
+		);
+	DrawTextEx(
+		global_font,
+		"HELP",
+		(Vector2) {
+			W_WID/2 - MeasureTextEx(global_font, "HELP", font_size*3, 1.0f).x/2,
+			W_HEI/2 - size.y*len
+		},
+		font_size*3,
+		1.0f,
+		WHITE
+	);
+}
 
 int main(void) {
 	Vector2 line[2];
@@ -236,6 +279,7 @@ int main(void) {
 		GREEN,
 	};
 	Vector2 mouse_current_position, mouse_last_position;
+	bool help = false;
 
 	InitWindow(W_WID, W_HEI, "Inkpad");
 	ToggleFullscreen();
@@ -268,9 +312,13 @@ int main(void) {
 				(Vector2){0, 0},
 				WHITE
 			);
-			
+
+			// Copyright message
 			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
 
+			// Draw help
+			if (help) draw_help((Vector2) { W_WID/2, W_HEI-40 });
+			
 			char pos_text[32];
 			sprintf(&pos_text, "X: %.2f Y: %.2f", mouse_current_position.x, mouse_current_position.y);
 			DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
@@ -291,6 +339,9 @@ int main(void) {
 				if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
 				if (IsKeyPressed(KEY_T)) s->mode = MODE_TEXT;
 				if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
+
+				// Help
+				if (IsKeyPressed(KEY_H)) help = !help;
 			}
 
 
