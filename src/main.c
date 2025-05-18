@@ -278,6 +278,7 @@ int main(void) {
 		DEFAULT_THICK,
 		GREEN,
 	};
+	Mode quick_erase_saved_mode = s->mode;
 	Vector2 mouse_current_position, mouse_last_position;
 	bool help = false;
 
@@ -320,7 +321,7 @@ int main(void) {
 			if (help) draw_help((Vector2) { W_WID/2, W_HEI-40 });
 			
 			char pos_text[32];
-			sprintf(&pos_text, "X: %.2f Y: %.2f", mouse_current_position.x, mouse_current_position.y);
+			sprintf(pos_text, "X: %.2f Y: %.2f", mouse_current_position.x, mouse_current_position.y);
 			DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
 
 			// Input
@@ -332,6 +333,13 @@ int main(void) {
 				if (IsKeyPressed(KEY_FOUR))  s->thick = DEFAULT_THICK + 15.0f;
 				if (IsKeyPressed(KEY_FIVE))  s->thick = DEFAULT_THICK + 20.0f;
 				if (IsKeyPressed(KEY_ZERO))  s->thick = DEFAULT_THICK/2;
+
+				// Quick erase
+				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+				{ quick_erase_saved_mode = s->mode;
+				  s->mode = MODE_ERASE;
+			    }
+				if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) s->mode = quick_erase_saved_mode;
 
 				// Modes
 				if (IsKeyPressed(KEY_A)) s->mode = MODE_FREE;

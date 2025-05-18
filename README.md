@@ -86,6 +86,10 @@ about the current stroke and the color options.
 
 ### Other
 
+#### _Quick erase_
+To quickly change to erase mode press and hold `right mouse button` and use `left mouse button` to erase.
+To go back to the previous mode, release the `right mouse button`.
+
 #### Clear screen
 To clear the entire canvas, press `C`.
 
