@@ -287,7 +287,7 @@ int main(void) {
 	HideCursor();
 
 	global_font = LoadFont("assets/Px437_IBM_VGA_9x16.ttf");
-	Color color_options[] = { WHITE, RED, GREEN, BLUE, PURPLE };
+	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
 	RenderTexture2D canvas = LoadRenderTexture(W_WID, W_HEI - 100);
 	TextState text = {0};
 	
