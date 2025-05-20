@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
+#include "Px437_IBM_VGA_9x16.c"
 
 #define W_WID GetScreenWidth()
 #define W_HEI GetScreenHeight()
@@ -286,7 +287,7 @@ int main(void) {
 	ToggleFullscreen();
 	HideCursor();
 
-	global_font = LoadFont("assets/Px437_IBM_VGA_9x16.ttf");
+	global_font = LoadFont_Px437();
 	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
 	RenderTexture2D canvas = LoadRenderTexture(W_WID, W_HEI - 100);
 	TextState text = {0};
