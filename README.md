@@ -1,5 +1,5 @@
 # Inkpad
-A simple drawing/whiteboarding software.
+A whiteboard tool for programmers.
 
 <img src="./screenshot.png" width="800" alt="Screenshot">
 
