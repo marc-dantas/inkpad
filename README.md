@@ -36,6 +36,7 @@ The modes that can be selected are the following:
 - Free: Freehand draw
 - Line: Draw a straight line
 - Rect: Draw a rectangle
+- Circle: Draw a circle
 - Text: Draw arbitrary text on the canvas
 - Erase: Erase drawings on the canvas
 
@@ -43,6 +44,7 @@ To enable the modes, use the following keys:
 - Free: `A`
 - Line: `L`
 - Rect: `R`
+- Circle: `O`
 - Text: `T`
 - Erase: `X`
 
@@ -67,6 +69,10 @@ rectangle. Release left mouse button to draw the rectangle at that position.
 Press left mouse button at the position you want to draw the text
 and start typing the desired text, to erase the last character typed, press backspace.
 When done, press enter to confirm and draw the text.
+
+**Circle mode**
+Press and hold left mouse button and drag it to define the radius of the circle.
+Release the left mouse button to draw it. 
 
 **Erase mode**
 Press left mouse button and drag the mouse with left mouse button down
