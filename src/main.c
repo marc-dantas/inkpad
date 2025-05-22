@@ -216,6 +216,7 @@ void draw_stroke_preview(Vector2 pos, Vector2 circle_center, TextState* text, St
 		break;
 	case MODE_RECT:
 		DrawRectangleLinesEx((Rectangle) { pos.x - s->thick/2, pos.y - s->thick/2, s->thick, s->thick }, 1.0f, c);
+		DrawCircle(pos.x, pos.y, 1.0f, c);
 		break;
 	case MODE_TEXT:
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 3.0f, c);
@@ -244,6 +245,7 @@ void draw_stroke_preview(Vector2 pos, Vector2 circle_center, TextState* text, St
 		break;
 	case MODE_CIRCLE:
 		DrawRing(pos, s->thick/2, s->thick/1.5, 0.0f, 360.0f, 30, c);
+		DrawCircle(pos.x, pos.y, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
 			DrawLineEx(circle_center, pos, 1.5f, WHITE);
 			int a, b, len;
