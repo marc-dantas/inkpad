@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+
 #include "raylib.h"
 #include "Px437_IBM_VGA_9x16.c"
 
@@ -22,6 +24,7 @@ typedef enum {
 	MODE_RECT,
 	MODE_TEXT,
 	MODE_ERASE,
+	MODE_CIRCLE,
 } Mode;
 
 typedef struct {
@@ -73,6 +76,9 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	case MODE_RECT:
 		DrawTextEx(global_font, "Rect", texpos, 30.0f, 1.0f, WHITE);
 		break;
+	case MODE_CIRCLE:
+		DrawTextEx(global_font, "Circle", texpos, 30.0f, 1.0f, WHITE);
+		break;
 	}
 }
 
@@ -110,7 +116,7 @@ void draw_rect(Rectangle rect, Stroke* s) {
 	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s->thick, s->color);
 }
 
-void draw_canvas(Stroke* s, TextState* text, Rectangle* rect, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
+void draw_canvas(Stroke* s, Vector2* circle_center, TextState* text, Rectangle* rect, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
 	switch (s->mode) {
 	case MODE_FREE: {
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
@@ -180,13 +186,26 @@ void draw_canvas(Stroke* s, TextState* text, Rectangle* rect, Vector2 line[2], V
 		}
 		break;
 	}
+	case MODE_CIRCLE: {
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+			*circle_center = mouse_current_position;
+		}
+		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+			int a, b, c;
+			a = circle_center->y - mouse_current_position.y;
+			b = circle_center->x - mouse_current_position.x;
+			c = sqrt(a*a + b*b);
+			DrawRing(*circle_center, c, c + s->thick, 0.0f, 360.0f, 80, s->color);
+		}
+		break;
+	}
 	}
 	if (IsKeyDown(KEY_C) && !text->active) {
-		ClearBackground(BGCOLOR);	
+		ClearBackground(BGCOLOR);
 	}
 }
 
-void draw_stroke_preview(Vector2 pos, TextState* text, Stroke* s) {
+void draw_stroke_preview(Vector2 pos, Vector2 circle_center, TextState* text, Stroke* s) {
 	Color c = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? s->color : WHITE;
 	switch (s->mode) {
 	case MODE_FREE:
@@ -218,11 +237,21 @@ void draw_stroke_preview(Vector2 pos, TextState* text, Stroke* s) {
 				DrawTextEx(global_font, text->content, (Vector2) { text->pos.x, text->pos.y - s->thick }, s->thick*2, 1.0f, WHITE);
 			}
 		}
-	
 		break;
 	case MODE_ERASE:
 		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y - s->thick/2 }, (Vector2) { pos.x + s->thick/2, pos.y + s->thick/2 }, 2.0f, WHITE);
 		DrawLineEx((Vector2) { pos.x + s->thick/2, pos.y - s->thick/2 }, (Vector2) { pos.x - s->thick/2, pos.y + s->thick/2 }, 2.0f, WHITE);
+		break;
+	case MODE_CIRCLE:
+		DrawRing(pos, s->thick/2, s->thick/1.5, 0.0f, 360.0f, 30, c);
+		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+			DrawLineEx(circle_center, pos, 1.5f, WHITE);
+			int a, b, len;
+			a = circle_center.y - pos.y;
+			b = circle_center.x - pos.x;
+			len = sqrt(a*a + b*b);
+			DrawCircleLinesV(circle_center, len, WHITE);
+		}
 		break;
 	}
 }
@@ -274,6 +303,7 @@ void draw_help() {
 int main(void) {
 	Vector2 line[2];
 	Rectangle rect;
+	Vector2 circle_center;
 	Stroke *s = &(Stroke){
 		MODE_FREE,
 		DEFAULT_THICK,
@@ -301,7 +331,7 @@ int main(void) {
 	while (!WindowShouldClose()) {
 		mouse_current_position = GetMousePosition();
 		BeginTextureMode(canvas);
-			draw_canvas(s, &text, &rect, line, mouse_current_position, mouse_last_position);
+			draw_canvas(s, &circle_center, &text, &rect, line, mouse_current_position, mouse_last_position);
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground(BLACK);
@@ -348,6 +378,7 @@ int main(void) {
 				if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
 				if (IsKeyPressed(KEY_T)) s->mode = MODE_TEXT;
 				if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
+				if (IsKeyPressed(KEY_O)) s->mode = MODE_CIRCLE;
 
 				// Help
 				if (IsKeyPressed(KEY_H)) help = !help;
@@ -391,7 +422,7 @@ int main(void) {
 			
 			// Color options
 			Rectangle bb = {0};
-			int starting_pos = bb.x + bb.width + 150;
+			int starting_pos = bb.x + bb.width + 200;
 			DrawTextEx(global_font, "Colors", (Vector2) { PANEL_PADDING + starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			for (size_t i = 0; i < sizeof(color_options)/sizeof(Color); i++) {
 				draw_color_option(&bb, PANEL_PADDING + starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING, color_options[i]);
@@ -401,7 +432,7 @@ int main(void) {
 			}
 			
 			// Draw stroke preview
-			draw_stroke_preview(mouse_current_position, &text, s);	
+			draw_stroke_preview(mouse_current_position, circle_center, &text, s);	
 		EndDrawing();
 		mouse_last_position = mouse_current_position;
 	}
