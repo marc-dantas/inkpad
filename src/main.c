@@ -212,7 +212,10 @@ void draw_stroke_preview(Vector2 pos, Vector2 line[2], Rectangle* rect, Vector2 
 		DrawCircleLinesV(pos, s->thick/2, c);
 		break;
 	case MODE_LINE:
-		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y - s->thick/2 }, (Vector2) { pos.x + s->thick/2, pos.y + s->thick/2 }, 3.0f, c);
+		DrawCircle(pos.x, pos.y, 2.0f, c);
+
+		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y }, (Vector2) { pos.x + s->thick/2, pos.y }, 1.0f, c);
+		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_line(line[0], pos, &(Stroke){
 				MODE_LINE,
