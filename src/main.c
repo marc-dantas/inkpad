@@ -205,7 +205,7 @@ void draw_canvas(Stroke* s, Vector2* circle_center, TextState* text, Rectangle* 
 	}
 }
 
-void draw_stroke_preview(Vector2 pos, Vector2 circle_center, TextState* text, Stroke* s) {
+void draw_stroke_preview(Vector2 pos, Vector2 line[2], Rectangle* rect, Vector2 circle_center, TextState* text, Stroke* s) {
 	Color c = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? s->color : WHITE;
 	switch (s->mode) {
 	case MODE_FREE:
@@ -213,10 +213,37 @@ void draw_stroke_preview(Vector2 pos, Vector2 circle_center, TextState* text, St
 		break;
 	case MODE_LINE:
 		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y - s->thick/2 }, (Vector2) { pos.x + s->thick/2, pos.y + s->thick/2 }, 3.0f, c);
+		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+			draw_line(line[0], pos, &(Stroke){
+				MODE_LINE,
+				1.0f,
+				WHITE
+			});
+		}
 		break;
 	case MODE_RECT:
 		DrawRectangleLinesEx((Rectangle) { pos.x - s->thick/2, pos.y - s->thick/2, s->thick, s->thick }, 1.0f, c);
 		DrawCircle(pos.x, pos.y, 1.0f, c);
+		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+			Rectangle preview_rect = *rect;
+			if (pos.x < preview_rect.x) {
+				preview_rect.width = preview_rect.x - pos.x;
+				preview_rect.x = pos.x;
+			} else {
+				preview_rect.width = pos.x - preview_rect.x;
+			}
+			if (pos.y < preview_rect.y) {
+				preview_rect.height = preview_rect.y - pos.y;
+				preview_rect.y = pos.y;
+			} else {
+				preview_rect.height = pos.y - preview_rect.y;
+			}
+			draw_rect(preview_rect, &(Stroke) {
+				MODE_RECT,
+				1.0f,
+				WHITE
+			});
+		}
 		break;
 	case MODE_TEXT:
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 3.0f, c);
@@ -337,38 +364,6 @@ int main(void) {
 				if (IsKeyPressed(KEY_O)) s->mode = MODE_CIRCLE;
 			}
 
-
-			// Line preview draw
-			if (s->mode == MODE_LINE && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-				draw_line(line[0], mouse_current_position, &(Stroke){
-					MODE_LINE,
-					1.0f,
-					WHITE
-				});
-			}
-
-			// Rectangle preview draw
-			if (s->mode == MODE_RECT && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-				Rectangle preview_rect = rect;
-				if (mouse_current_position.x < preview_rect.x) {
-					preview_rect.width = preview_rect.x - mouse_current_position.x;
-					preview_rect.x = mouse_current_position.x;
-				} else {
-					preview_rect.width = mouse_current_position.x - preview_rect.x;
-				}
-				if (mouse_current_position.y < preview_rect.y) {
-					preview_rect.height = preview_rect.y - mouse_current_position.y;
-					preview_rect.y = mouse_current_position.y;
-				} else {
-					preview_rect.height = mouse_current_position.y - preview_rect.y;
-				}
-				draw_rect(preview_rect, &(Stroke) {
-					MODE_RECT,
-					1.0f,
-					WHITE
-				});
-			}
-
 			// Show stroke information
 			DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			show_stroke(PANEL_PADDING, canvas.texture.height + 20 + PANEL_PADDING, s);
@@ -385,7 +380,7 @@ int main(void) {
 			}
 			
 			// Draw stroke preview
-			draw_stroke_preview(mouse_current_position, circle_center, &text, s);	
+			draw_stroke_preview(mouse_current_position, line, &rect, circle_center, &text, s);	
 		EndDrawing();
 		mouse_last_position = mouse_current_position;
 	}
