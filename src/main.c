@@ -334,7 +334,7 @@ int main(void) {
 
 			// Messages
 			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
-			DrawTextEx(global_font, "Inkpad v0.2 DEV", (Vector2) { W_WID-210, W_HEI-40 }, 15.0f, 1.0f, WHITE);
+			DrawTextEx(global_font, "Inkpad v0.2", (Vector2) { W_WID-210, W_HEI-40 }, 15.0f, 1.0f, WHITE);
 			
 			// Show Coordinates
 			char pos_text[32];
