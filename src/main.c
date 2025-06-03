@@ -352,6 +352,11 @@ int main(void) {
 			sprintf(pos_text, "X: %.2f Y: %.2f", mouse_current_position.x, mouse_current_position.y);
 			DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
 
+			// Page number
+			char page_number_text[16];
+			sprintf(page_number_text, "%d/5", page_selection+1);
+			DrawTextEx(global_font, page_number_text, (Vector2) { 20, canvas.texture.height - 40 }, 25.0f, 1.0f, WHITE);
+
 			// Input
 			if (!text.active) {
 				// Thickness Operations
