@@ -15,7 +15,7 @@ To enable the modes, use the following keys:
 - Free: `A`
 - Line: `L`
 - Rect: `R`
-- Circle: `O`
+- Circle: `C`
 - Text: `T`
 - Erase: `X`
 
@@ -69,11 +69,15 @@ To set the thickness of the stroke, press one of the keys to set the thickness:
 Status panel is the black area below the drawing canvas, it contains all information
 about the current stroke and the color options.
 
-### Other
+### Utility
 
 #### _Quick erase_
 To quickly change to erase mode press and hold `right mouse button` and use `left mouse button` to erase.
 To go back to the previous mode, release the `right mouse button`.
 
+#### _Quick line_
+To quickly draw a line, press and hold `LSHIFT` to change to **line mode** and use `left mouse button` to start
+drawing lines in your canvas.
+
 #### Clear screen
-To clear the entire canvas, press `C`.
+To clear the entire canvas, press `CTRL + X`.
