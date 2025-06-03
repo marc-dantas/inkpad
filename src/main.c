@@ -366,8 +366,12 @@ int main(void) {
 				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
 				{ saved_mode = s->mode;
 				  s->mode = MODE_ERASE;
+				  s->thick *= 2;
 			    }
-				if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) s->mode = saved_mode;
+				if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
+				{ s->mode = saved_mode;
+			      s->thick /= 2;
+				}
 
 				// Quick line
 			    if (IsKeyPressed(KEY_LEFT_SHIFT))
