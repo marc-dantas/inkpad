@@ -200,9 +200,6 @@ void draw_canvas(Stroke* s, Vector2* circle_center, TextState* text, Rectangle* 
 		break;
 	}
 	}
-	if (IsKeyDown(KEY_C) && !text->active) {
-		ClearBackground(BGCOLOR);
-	}
 }
 
 void draw_stroke_preview(Vector2 pos, Vector2 line[2], Rectangle* rect, Vector2 circle_center, TextState* text, Stroke* s) {
@@ -297,7 +294,7 @@ int main(void) {
 		DEFAULT_THICK,
 		GREEN,
 	};
-	Mode quick_erase_saved_mode = s->mode;
+	Mode saved_mode = s->mode;
 	Vector2 mouse_current_position, mouse_last_position;
 
 	InitWindow(W_WID, W_HEI, "Inkpad");
@@ -334,7 +331,7 @@ int main(void) {
 
 			// Messages
 			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
-			DrawTextEx(global_font, "Inkpad v0.2", (Vector2) { W_WID-210, W_HEI-40 }, 15.0f, 1.0f, WHITE);
+			DrawTextEx(global_font, "Inkpad v0.3 DEV", (Vector2) { W_WID-210, W_HEI-40 }, 15.0f, 1.0f, WHITE);
 			
 			// Show Coordinates
 			char pos_text[32];
@@ -353,18 +350,33 @@ int main(void) {
 
 				// Quick erase
 				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
-				{ quick_erase_saved_mode = s->mode;
+				{ saved_mode = s->mode;
 				  s->mode = MODE_ERASE;
 			    }
-				if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) s->mode = quick_erase_saved_mode;
+				if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) s->mode = saved_mode;
+
+				// Quick line
+			    if (IsKeyPressed(KEY_LEFT_SHIFT))
+			    { saved_mode = s->mode;
+			      s->mode = MODE_LINE;
+			    }
+				if (IsKeyReleased(KEY_LEFT_SHIFT)) s->mode = saved_mode;
 
 				// Modes
 				if (IsKeyPressed(KEY_A)) s->mode = MODE_FREE;
 				if (IsKeyPressed(KEY_L)) s->mode = MODE_LINE;
-				if (IsKeyPressed(KEY_X)) s->mode = MODE_ERASE;
+				if (IsKeyPressed(KEY_X)) {
+					if (IsKeyDown(KEY_LEFT_CONTROL)) {
+						BeginTextureMode(canvas);
+						ClearBackground(BGCOLOR);				
+						EndTextureMode();
+					} else {
+						s->mode = MODE_ERASE;
+					}
+				}
 				if (IsKeyPressed(KEY_T)) s->mode = MODE_TEXT;
 				if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
-				if (IsKeyPressed(KEY_O)) s->mode = MODE_CIRCLE;
+				if (IsKeyPressed(KEY_C)) s->mode = MODE_CIRCLE;
 			}
 
 			// Show stroke information
