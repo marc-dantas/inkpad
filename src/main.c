@@ -91,8 +91,12 @@ void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, C
 	boundingbox->height = 50;
 }
 
-void draw_button(Rectangle* boundingbox, unsigned int x, unsigned int y, Texture2D tex) {
-	DrawTextureEx(tex, (Vector2){ x, y }, 0.0f, 50.0/tex.width, WHITE);
+void draw_page_option(Rectangle* boundingbox, bool selected, int number, unsigned int x, unsigned int y) {
+	if (selected) DrawRectangle(x, y, 50, 50, (Color) { 10, 230, 10, 255 });
+	DrawRectangleLines(x-1, y-1, 52, 52, WHITE);
+	char text[2];
+	sprintf(text, "%d", number);
+	DrawTextEx(global_font, text, (Vector2) { x+5, y+5 }, 21.0f, 1.0f, WHITE);
 	boundingbox->x = x;
 	boundingbox->y = y;
 	boundingbox->width = 50;
@@ -303,14 +307,24 @@ int main(void) {
 
 	global_font = LoadFont_Px437();
 	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
-	RenderTexture2D canvas = LoadRenderTexture(W_WID, W_HEI - 100);
+	RenderTexture2D pages[] = {
+		LoadRenderTexture(W_WID, W_HEI - 100),
+		LoadRenderTexture(W_WID, W_HEI - 100),
+		LoadRenderTexture(W_WID, W_HEI - 100),
+		LoadRenderTexture(W_WID, W_HEI - 100),
+		LoadRenderTexture(W_WID, W_HEI - 100)
+	};
+	int page_selection = 0;
+	RenderTexture2D canvas = pages[page_selection];
 	TextState text = {0};
 	
 	SetTargetFPS(120);
 
-	BeginTextureMode(canvas);
-	ClearBackground(BGCOLOR);
-	EndTextureMode();
+	for (int i = 0; i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
+		BeginTextureMode(pages[i]);
+		ClearBackground(BGCOLOR);
+		EndTextureMode();
+	}
 
 	while (!WindowShouldClose()) {
 		mouse_current_position = GetMousePosition();
@@ -331,7 +345,7 @@ int main(void) {
 
 			// Messages
 			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
-			DrawTextEx(global_font, "Inkpad v0.3 DEV", (Vector2) { W_WID-210, W_HEI-40 }, 15.0f, 1.0f, WHITE);
+			DrawTextEx(global_font, "Inkpad v0.3 DEV", (Vector2) { W_WID-210, W_HEI-40 }, 22.0f, 1.0f, WHITE);
 			
 			// Show Coordinates
 			char pos_text[32];
@@ -385,13 +399,25 @@ int main(void) {
 			
 			// Color options
 			Rectangle bb = {0};
-			int starting_pos = bb.x + bb.width + 200;
-			DrawTextEx(global_font, "Colors", (Vector2) { PANEL_PADDING + starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			for (size_t i = 0; i < sizeof(color_options)/sizeof(Color); i++) {
-				draw_color_option(&bb, PANEL_PADDING + starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING, color_options[i]);
+			int starting_pos = PANEL_PADDING + bb.x + bb.width + 200;
+			DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			size_t len = sizeof(color_options)/sizeof(Color);
+			for (size_t i = 0; i < len; i++) {
+				draw_color_option(&bb, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING, color_options[i]);
 				if (check_boundingbox(bb, mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					s->color = color_options[i];
 				}
+			}
+			starting_pos += bb.width*len;
+
+			// Draw page buttons
+			starting_pos += PANEL_PADDING;
+			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			for (size_t i = 0; i < 5; i++) {
+				draw_page_option(&bb, page_selection == i, i+1, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING);
+				if (check_boundingbox(bb, mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+					page_selection = i;
+					canvas = pages[page_selection];				}
 			}
 			
 			// Draw stroke preview
