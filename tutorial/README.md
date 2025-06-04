@@ -1,11 +1,10 @@
 # Inkpad Tutorial
 
 ## UI
-<img src="./ui.png" width="800" alt="Screenshot">
+<img src="./res/ui.png" width="800" alt="Screenshot">
 > _Inkpad UI Reference_
 
 ## Stroke modes
-
 Inkpad works by changing **stroke modes**.
 The modes that can be selected are the following:
 - Free: Freehand draw
@@ -15,7 +14,6 @@ The modes that can be selected are the following:
 - Text: Draw arbitrary text on the canvas
 - Erase: Erase drawings on the canvas
 
-
 To enable the modes, use the following keys:
 - Free: `A`
 - Line: `L`
@@ -24,7 +22,7 @@ To enable the modes, use the following keys:
 - Text: `T`
 - Erase: `X`
 
-![Stroke](./stroke.png)
+![Stroke](./res/stroke.png)
 > _In the Stroke information section, you'll find the mode you are currently in_
 
 ### Usage of modes
@@ -65,19 +63,19 @@ Stroke has 2 more properties:
 - Color: Stroke color
 
 ### Thickness
-![Thickness](./thick.png)
+![Thickness](./res/thick.png)
 > _Different stroke thickness that Inkpad supports_
 
 To set the thickness of the stroke, press the number keys from `0` to `5` to set the thickness.
 
 ### Color
-![Thickness](./thick.png)
+![Thickness](./res/color.png)
 > _Color options_
 
 To select a color for the stroke, click the desired color option in the status panel.
 
 ## Pages
-![Pages](./pages.png)
+![Pages](./res/pages.png)
 > _Select different pages in the page selector_
 
 Inkpad uses a system of **pages**. Basically, you can switch between pages and draw

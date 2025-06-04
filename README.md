@@ -29,8 +29,7 @@ If you are on Windows, you can put it anywhere you want and then create a
 shortcut to desktop, start menu and/or taskbar.
 
 ## Tutorial
-
-Read the full tutorial [here](./TUTORIAL.md).
+Read the full tutorial [here](./tutorial/).
 
 ---
 
