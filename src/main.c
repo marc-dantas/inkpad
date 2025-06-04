@@ -332,9 +332,9 @@ int main(void) {
 			draw_canvas(s, &circle_center, &text, &rect, line, mouse_current_position, mouse_last_position);
 		EndTextureMode();
 		BeginDrawing();
-			ClearBackground(BLACK);
+			ClearBackground((Color){ 40, 40, 40, 255 });
 
-			// Draw canvas
+			// Draw canvasd
 			DrawTextureRec(
 				canvas.texture,
 			    (Rectangle){0, 0, (float)canvas.texture.width,
