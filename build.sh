@@ -4,7 +4,7 @@ CFLAGS="-Wall -Wextra"
 MAIN="src/main.c"
 INCLUDE="/usr/local/include"
 # OUT="bin/inkpad.exe"
-OUT="bin/inkpad"
+OUT="bin/inkpad-x86_64-linux"
 set -xe
 mkdir -p bin
 
