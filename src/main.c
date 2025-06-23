@@ -10,10 +10,9 @@
 #define W_HEI GetScreenHeight()
 #define BGCOLOR (Color){18, 18, 18, 255}
 
-// Layout constants
-#define PANEL_PADDING 15
-#define GRID_ROWS 20
-#define GRID_COLS 20
+// General constants
+#define PANEL_PADDING 15 // pixels
+#define MAX_PAGES     5
 
 // Stroke constants
 #define DEFAULT_THICK 8.0f
@@ -307,7 +306,7 @@ int main(void) {
 
 	global_font = LoadFont_Px437();
 	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
-	RenderTexture2D pages[] = {
+	RenderTexture2D pages[MAX_PAGES] = {
 		LoadRenderTexture(W_WID, W_HEI - 100),
 		LoadRenderTexture(W_WID, W_HEI - 100),
 		LoadRenderTexture(W_WID, W_HEI - 100),
@@ -354,7 +353,7 @@ int main(void) {
 
 			// Page number
 			char page_number_text[16];
-			sprintf(page_number_text, "%d/5", page_selection+1);
+			sprintf(page_number_text, "%d/%d", page_selection+1, MAX_PAGES);
 			DrawTextEx(global_font, page_number_text, (Vector2) { 20, canvas.texture.height - 40 }, 25.0f, 1.0f, WHITE);
 
 			// Input
@@ -400,6 +399,16 @@ int main(void) {
 				if (IsKeyPressed(KEY_T)) s->mode = MODE_TEXT;
 				if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
 				if (IsKeyPressed(KEY_C)) s->mode = MODE_CIRCLE;
+
+				// Page shortcuts
+				if (IsKeyPressed(KEY_PERIOD))
+				{ page_selection = page_selection < MAX_PAGES-1 ? page_selection + 1 : page_selection;
+			      canvas = pages[page_selection];
+				}
+				if (IsKeyPressed(KEY_COMMA))
+				{ page_selection = page_selection > 0 ? page_selection - 1 : page_selection;
+			      canvas = pages[page_selection];
+				}
 			}
 
 			// Show stroke information
@@ -422,7 +431,7 @@ int main(void) {
 			// Draw page buttons
 			starting_pos += PANEL_PADDING;
 			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			for (size_t i = 0; i < 5; i++) {
+			for (size_t i = 0; i < MAX_PAGES; i++) {
 				draw_page_option(&bb, page_selection == i, i+1, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING);
 				if (check_boundingbox(bb, mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					page_selection = i;
