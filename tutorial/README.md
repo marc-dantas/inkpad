@@ -1,7 +1,11 @@
 # Inkpad Tutorial
+Learn how to use Inkpad.
+You may find this document useful.
 
 ## UI
+
 <img src="./res/ui.png" width="800" alt="Screenshot">
+
 > _Inkpad UI Reference_
 
 ## Stroke modes
@@ -82,9 +86,11 @@ Inkpad uses a system of **pages**. Basically, you can switch between pages and d
 different things on them. They can be selected using the **page selector** in the
 status panel.
 
-### Page selector
+### Page selection
 To change to a specific page, click on the selector containing the number of the page.
 Inkpad has 5 pages for you to use freely. 
+
+To quickly change between pages, use the `.` and `,` keys to go forward and backward, respectively. 
 
 ## Status panel
 Status panel is the area below the drawing canvas, it contains all information
@@ -102,3 +108,7 @@ drawing lines in your canvas.
 
 ### Clear screen
 To clear the entire canvas, press `CTRL` + `X`.
+
+---
+
+> Copyright (c) 2025 Marcio Dantas 
