@@ -38,6 +38,15 @@ typedef struct {
 	bool active;
 } TextState;
 
+typedef struct {
+	Stroke s;
+	Vector2 line[2];
+	Rectangle rect;
+	Vector2 circle_center;
+	TextState text;
+	Vector2 mouse_last_position, mouse_current_position;
+} Context;
+
 Font global_font;
 
 void draw_stroke(Vector2 start, Vector2 end, Stroke *s) {
@@ -119,7 +128,15 @@ void draw_rect(Rectangle rect, Stroke* s) {
 	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s->thick, s->color);
 }
 
-void draw_canvas(Stroke* s, Vector2* circle_center, TextState* text, Rectangle* rect, Vector2 line[2], Vector2 mouse_current_position, Vector2 mouse_last_position) {
+void draw_canvas(Context* context) {
+	Stroke* s = &context->s;
+	Vector2* circle_center = &context->circle_center;
+	TextState* text = &context->text;
+	Rectangle* rect = &context->rect;
+	Vector2 line[2]; line[0] = context->line[0]; line[1] = context->line[1];
+	Vector2 mouse_current_position = context->mouse_current_position;
+	Vector2 mouse_last_position = context->mouse_last_position;
+	
 	switch (s->mode) {
 	case MODE_FREE: {
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
@@ -205,7 +222,14 @@ void draw_canvas(Stroke* s, Vector2* circle_center, TextState* text, Rectangle* 
 	}
 }
 
-void draw_stroke_preview(Vector2 pos, Vector2 line[2], Rectangle* rect, Vector2 circle_center, TextState* text, Stroke* s) {
+void draw_stroke_preview(Context* context) {
+	Vector2 pos = context->mouse_current_position;
+	Vector2 line[2]; line[0] = context->line[0]; line[1] = context->line[1];
+	Rectangle* rect = &context->rect;
+	Vector2 circle_center = context->circle_center;
+	TextState* text = &context->text;
+	Stroke* s = &context->s;
+	
 	Color c = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? s->color : WHITE;
 	switch (s->mode) {
 	case MODE_FREE:
@@ -289,16 +313,14 @@ void draw_stroke_preview(Vector2 pos, Vector2 line[2], Rectangle* rect, Vector2 
 }
 
 int main(void) {
-	Vector2 line[2];
-	Rectangle rect;
-	Vector2 circle_center;
-	Stroke *s = &(Stroke){
+	Context context = {0};
+	context.s = (Stroke){
 		MODE_FREE,
 		DEFAULT_THICK,
 		GREEN,
 	};
-	Mode saved_mode = s->mode;
-	Vector2 mouse_current_position, mouse_last_position;
+	
+	Mode saved_mode = context.s.mode;
 
 	InitWindow(W_WID, W_HEI, "Inkpad");
 	ToggleFullscreen();
@@ -326,9 +348,9 @@ int main(void) {
 	}
 
 	while (!WindowShouldClose()) {
-		mouse_current_position = GetMousePosition();
+		context.mouse_current_position = GetMousePosition();
 		BeginTextureMode(canvas);
-			draw_canvas(s, &circle_center, &text, &rect, line, mouse_current_position, mouse_last_position);
+			draw_canvas(&context);
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
@@ -348,7 +370,7 @@ int main(void) {
 			
 			// Show Coordinates
 			char pos_text[32];
-			sprintf(pos_text, "X: %.2f Y: %.2f", mouse_current_position.x, mouse_current_position.y);
+			sprintf(pos_text, "X: %.2f Y: %.2f", context.mouse_current_position.x, context.mouse_current_position.y);
 			DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
 
 			// Page number
@@ -359,46 +381,46 @@ int main(void) {
 			// Input
 			if (!text.active) {
 				// Thickness Operations
-				if (IsKeyPressed(KEY_ONE))   s->thick = DEFAULT_THICK;
-				if (IsKeyPressed(KEY_TWO))   s->thick = DEFAULT_THICK + 5.0f;
-				if (IsKeyPressed(KEY_THREE)) s->thick = DEFAULT_THICK + 10.0f;
-				if (IsKeyPressed(KEY_FOUR))  s->thick = DEFAULT_THICK + 15.0f;
-				if (IsKeyPressed(KEY_FIVE))  s->thick = DEFAULT_THICK + 20.0f;
-				if (IsKeyPressed(KEY_ZERO))  s->thick = DEFAULT_THICK/2;
+				if (IsKeyPressed(KEY_ONE))   context.s.thick = DEFAULT_THICK;
+				if (IsKeyPressed(KEY_TWO))   context.s.thick = DEFAULT_THICK + 5.0f;
+				if (IsKeyPressed(KEY_THREE)) context.s.thick = DEFAULT_THICK + 10.0f;
+				if (IsKeyPressed(KEY_FOUR))  context.s.thick = DEFAULT_THICK + 15.0f;
+				if (IsKeyPressed(KEY_FIVE))  context.s.thick = DEFAULT_THICK + 20.0f;
+				if (IsKeyPressed(KEY_ZERO))  context.s.thick = DEFAULT_THICK/2;
 
 				// Quick erase
 				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
-				{ saved_mode = s->mode;
-				  s->mode = MODE_ERASE;
-				  s->thick *= 2;
+				{ saved_mode = context.s.mode;
+				  context.s.mode = MODE_ERASE;
+				  context.s.thick *= 2;
 			    }
 				if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
-				{ s->mode = saved_mode;
-			      s->thick /= 2;
+				{ context.s.mode = saved_mode;
+			      context.s.thick /= 2;
 				}
 
 				// Quick line
 			    if (IsKeyPressed(KEY_LEFT_SHIFT))
-			    { saved_mode = s->mode;
-			      s->mode = MODE_LINE;
+			    { saved_mode = context.s.mode;
+			      context.s.mode = MODE_LINE;
 			    }
-				if (IsKeyReleased(KEY_LEFT_SHIFT)) s->mode = saved_mode;
+				if (IsKeyReleased(KEY_LEFT_SHIFT)) context.s.mode = saved_mode;
 
 				// Modes
-				if (IsKeyPressed(KEY_A)) s->mode = MODE_FREE;
-				if (IsKeyPressed(KEY_L)) s->mode = MODE_LINE;
+				if (IsKeyPressed(KEY_A)) context.s.mode = MODE_FREE;
+				if (IsKeyPressed(KEY_L)) context.s.mode = MODE_LINE;
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
 						BeginTextureMode(canvas);
 						ClearBackground(BGCOLOR);				
 						EndTextureMode();
 					} else {
-						s->mode = MODE_ERASE;
+						context.s.mode = MODE_ERASE;
 					}
 				}
-				if (IsKeyPressed(KEY_T)) s->mode = MODE_TEXT;
-				if (IsKeyPressed(KEY_R)) s->mode = MODE_RECT;
-				if (IsKeyPressed(KEY_C)) s->mode = MODE_CIRCLE;
+				if (IsKeyPressed(KEY_T)) context.s.mode = MODE_TEXT;
+				if (IsKeyPressed(KEY_R)) context.s.mode = MODE_RECT;
+				if (IsKeyPressed(KEY_C)) context.s.mode = MODE_CIRCLE;
 
 				// Page shortcuts
 				if (IsKeyPressed(KEY_PERIOD))
@@ -413,7 +435,7 @@ int main(void) {
 
 			// Show stroke information
 			DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			show_stroke(PANEL_PADDING, canvas.texture.height + 20 + PANEL_PADDING, s);
+			show_stroke(PANEL_PADDING, canvas.texture.height + 20 + PANEL_PADDING, &context.s);
 			
 			// Color options
 			Rectangle bb = {0};
@@ -422,8 +444,8 @@ int main(void) {
 			size_t len = sizeof(color_options)/sizeof(Color);
 			for (size_t i = 0; i < len; i++) {
 				draw_color_option(&bb, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING, color_options[i]);
-				if (check_boundingbox(bb, mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					s->color = color_options[i];
+				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+					context.s.color = color_options[i];
 				}
 			}
 			starting_pos += bb.width*len;
@@ -433,15 +455,15 @@ int main(void) {
 			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			for (size_t i = 0; i < MAX_PAGES; i++) {
 				draw_page_option(&bb, page_selection == i, i+1, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING);
-				if (check_boundingbox(bb, mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					page_selection = i;
 					canvas = pages[page_selection];				}
 			}
 			
 			// Draw stroke preview
-			draw_stroke_preview(mouse_current_position, line, &rect, circle_center, &text, s);	
+			draw_stroke_preview(&context);	
 		EndDrawing();
-		mouse_last_position = mouse_current_position;
+		context.mouse_last_position = context.mouse_current_position;
 	}
 
 	UnloadRenderTexture(canvas);
