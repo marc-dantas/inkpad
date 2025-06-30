@@ -5,14 +5,16 @@
 
 #include "raylib.h"
 #include "Px437_IBM_VGA_9x16.c"
+#include "Save.c"
 
 #define W_WID GetScreenWidth()
 #define W_HEI GetScreenHeight()
 #define BGCOLOR (Color){18, 18, 18, 255}
 
 // General constants
-#define PANEL_PADDING 15 // pixels
-#define MAX_PAGES     5
+#define PANEL_PADDING      15 // pixels
+#define MAX_PAGES          5
+#define DEFAULT_SLEEP_TIME 240 // 2 seconds if running as 120 fps
 
 // Stroke constants
 #define DEFAULT_THICK 8.0f
@@ -105,6 +107,16 @@ void draw_page_option(Rectangle* boundingbox, bool selected, int number, unsigne
 	char text[2];
 	sprintf(text, "%d", number);
 	DrawTextEx(global_font, text, (Vector2) { x+5, y+5 }, 21.0f, 1.0f, WHITE);
+	boundingbox->x = x;
+	boundingbox->y = y;
+	boundingbox->width = 50;
+	boundingbox->height = 50;
+}
+
+void draw_texture_button(Rectangle* boundingbox, Texture2D tex, unsigned int x, unsigned int y) {
+	float scaleX = (float)52 / tex.width;
+    float scaleY = (float)52 / tex.height;
+	DrawTextureEx(tex, (Vector2){x, y}, 0.0f, (scaleX < scaleY) ? scaleX : scaleY, WHITE);
 	boundingbox->x = x;
 	boundingbox->y = y;
 	boundingbox->width = 50;
@@ -312,6 +324,13 @@ void draw_stroke_preview(Context* context) {
 	}
 }
 
+int save_canvas_as_image(Texture2D canvas, char* filename) {
+	Image i = LoadImageFromTexture(canvas);
+	ImageFlipVertical(&i);
+	ExportImage(i, filename);
+	UnloadImage(i);
+}
+
 int main(void) {
 	Context context = {0};
 	context.s = (Stroke){
@@ -327,9 +346,12 @@ int main(void) {
 	HideCursor();
 
 	global_font = LoadFont_Px437();
+	Image i = { .data = SAVE_DATA, .width = SAVE_WIDTH, .height = SAVE_HEIGHT, .format = SAVE_FORMAT, .mipmaps = 1 };;
+	Texture2D save_icon = LoadTextureFromImage(i);
+	
 	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
 	RenderTexture2D pages[MAX_PAGES] = {
-		LoadRenderTexture(W_WID, W_HEI - 100),
+		LoadRenderTexture(W_WID, W_HEI - 100), // These 100 pixels is the height if the status panel
 		LoadRenderTexture(W_WID, W_HEI - 100),
 		LoadRenderTexture(W_WID, W_HEI - 100),
 		LoadRenderTexture(W_WID, W_HEI - 100),
@@ -338,6 +360,9 @@ int main(void) {
 	int page_selection = 0;
 	RenderTexture2D canvas = pages[page_selection];
 	TextState text = {0};
+
+	char status_text[128] = {0};
+	int status_timer = DEFAULT_SLEEP_TIME;
 	
 	SetTargetFPS(120);
 
@@ -355,18 +380,22 @@ int main(void) {
 		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
 
-			// Draw canvasd
+			// Draw canvas
 			DrawTextureRec(
 				canvas.texture,
-			    (Rectangle){0, 0, (float)canvas.texture.width,
-			    -(float)canvas.texture.height},
+			    (Rectangle){
+			    	0,
+			    	0,
+			    	(float)canvas.texture.width,
+			    	-(float)canvas.texture.height
+			    }, // Flips the texture so it doesn't look upside down bc of opengl shit
 				(Vector2){0, 0},
 				WHITE
 			);
 
 			// Messages
-			DrawTextEx(global_font, "(c) 2025 Marcio Dantas", (Vector2) { W_WID-210, W_HEI-20 }, 15.0f, 1.0f, WHITE);
-			DrawTextEx(global_font, "Inkpad v0.3", (Vector2) { W_WID-210, W_HEI-40 }, 22.0f, 1.0f, WHITE);
+			Vector2 size = MeasureTextEx(global_font, "Inkpad v0.4 DEV", 13.0f, 1.0f);
+			DrawTextEx(global_font, "Inkpad v0.4 DEV", (Vector2) { W_WID-size.x-PANEL_PADDING, W_HEI-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
 			
 			// Show Coordinates
 			char pos_text[32];
@@ -414,6 +443,8 @@ int main(void) {
 						BeginTextureMode(canvas);
 						ClearBackground(BGCOLOR);				
 						EndTextureMode();
+						strcpy(status_text, "Cleared screen");
+						status_timer = DEFAULT_SLEEP_TIME;
 					} else {
 						context.s.mode = MODE_ERASE;
 					}
@@ -426,11 +457,15 @@ int main(void) {
 				if (IsKeyPressed(KEY_PERIOD))
 				{ page_selection = page_selection < MAX_PAGES-1 ? page_selection + 1 : page_selection;
 			      canvas = pages[page_selection];
+			      strcpy(status_text, TextFormat("Changed to page %d", page_selection + 1));
+  	  			  status_timer = DEFAULT_SLEEP_TIME;
 				}
 				if (IsKeyPressed(KEY_COMMA))
 				{ page_selection = page_selection > 0 ? page_selection - 1 : page_selection;
 			      canvas = pages[page_selection];
-				}
+				  strcpy(status_text, TextFormat("Changed to page %d", page_selection + 1));
+	  			  status_timer = DEFAULT_SLEEP_TIME;
+  				}
 			}
 
 			// Show stroke information
@@ -458,8 +493,30 @@ int main(void) {
 				draw_page_option(&bb, page_selection == i, i+1, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING);
 				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					page_selection = i;
-					canvas = pages[page_selection];				}
+					canvas = pages[page_selection];
+					strcpy(status_text, TextFormat("Changed to page %d", page_selection + 1));
+	  				status_timer = DEFAULT_SLEEP_TIME;
+				}
 			}
+			starting_pos += bb.width*MAX_PAGES;
+
+			// Save button
+			starting_pos += PANEL_PADDING;
+			DrawTextEx(global_font, "Save", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			draw_texture_button(&bb, save_icon, starting_pos, canvas.texture.height + PANEL_PADDING + 20);
+			if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+				save_canvas_as_image(canvas.texture, "./canvas.png");
+				strcpy(status_text, "Saved canvas successfully as canvas.png");
+				status_timer = DEFAULT_SLEEP_TIME;
+			}
+			starting_pos += bb.width;
+
+			// Status text
+			DrawTextEx(global_font, "Status messages", (Vector2) { starting_pos + PANEL_PADDING, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 15, canvas.texture.height + PANEL_PADDING+35 }, 20.0f, 1.0f, GREEN);
+			DrawRectangleLines(starting_pos + PANEL_PADDING, canvas.texture.height + PANEL_PADDING+20, W_WID - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
+			if (status_timer > 0) status_timer--;
+			else memset(status_text, 0, sizeof(status_text));
 			
 			// Draw stroke preview
 			draw_stroke_preview(&context);
