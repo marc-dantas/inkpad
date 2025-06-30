@@ -324,7 +324,7 @@ void draw_stroke_preview(Context* context) {
 	}
 }
 
-int save_canvas_as_image(Texture2D canvas, char* filename) {
+void save_canvas_as_image(Texture2D canvas, char* filename) {
 	Image i = LoadImageFromTexture(canvas);
 	ImageFlipVertical(&i);
 	ExportImage(i, filename);
@@ -366,7 +366,7 @@ int main(void) {
 	
 	SetTargetFPS(120);
 
-	for (int i = 0; i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
+	for (int i = 0; (size_t)i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
 		BeginTextureMode(pages[i]);
 		ClearBackground(BGCOLOR);
 		EndTextureMode();
@@ -490,7 +490,7 @@ int main(void) {
 			starting_pos += PANEL_PADDING;
 			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			for (size_t i = 0; i < MAX_PAGES; i++) {
-				draw_page_option(&bb, page_selection == i, i+1, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING);
+				draw_page_option(&bb, (size_t) page_selection == i, i+1, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING);
 				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					page_selection = i;
 					canvas = pages[page_selection];
