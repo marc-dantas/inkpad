@@ -96,7 +96,20 @@ To quickly change between pages, use the `.` and `,` keys to go forward and back
 Status panel is the area below the drawing canvas, it contains all information
 about the current stroke, the color options and the page selector.
 
+### Status messages
+Status messages are shown inside a rectangular white outline after the save button in the Status panel.
+Its purpose it to log the main actions you take using Inkpad.
+
 ## Utility
+
+### Save button
+
+![Save button](./res/save.png)
+
+Use the save button to export your current page as a  `png` image. You just need to click the button in the status panel.
+After saving successfully, it is possible to notice a log in the **Status message** section.
+
+> NOTE: It saves the image in the current working directory. 
 
 ### _Quick erase_
 To quickly change to erase mode press and hold `RMB` and use `LMB` to erase.
