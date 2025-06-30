@@ -438,6 +438,7 @@ int main(void) {
 			show_stroke(PANEL_PADDING, canvas.texture.height + 20 + PANEL_PADDING, &context.s);
 			
 			// Color options
+			// BB means Bounding Box, not Bubble Gum! You bastard!
 			Rectangle bb = {0};
 			int starting_pos = PANEL_PADDING + bb.x + bb.width + 200;
 			DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
@@ -461,7 +462,7 @@ int main(void) {
 			}
 			
 			// Draw stroke preview
-			draw_stroke_preview(&context);	
+			draw_stroke_preview(&context);
 		EndDrawing();
 		context.mouse_last_position = context.mouse_current_position;
 	}
