@@ -133,7 +133,7 @@ void draw_canvas(Context* context) {
 	Vector2* circle_center = &context->circle_center;
 	TextState* text = &context->text;
 	Rectangle* rect = &context->rect;
-	Vector2 line[2]; line[0] = context->line[0]; line[1] = context->line[1];
+	Vector2* line[2]; line[0] = &context->line[0]; line[1] = &context->line[1];
 	Vector2 mouse_current_position = context->mouse_current_position;
 	Vector2 mouse_last_position = context->mouse_last_position;
 	
@@ -146,11 +146,11 @@ void draw_canvas(Context* context) {
 	}
 	case MODE_LINE: {
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			line[0] = mouse_current_position;
+			*line[0] = mouse_current_position;
 		}
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-			line[1] = mouse_current_position;
-			draw_line(line[0], line[1], s);
+			*line[1] = mouse_current_position;
+			draw_line(*line[0], *line[1], s);
 		}
 		break;
 	}
@@ -224,7 +224,7 @@ void draw_canvas(Context* context) {
 
 void draw_stroke_preview(Context* context) {
 	Vector2 pos = context->mouse_current_position;
-	Vector2 line[2]; line[0] = context->line[0]; line[1] = context->line[1];
+	Vector2* line[2]; line[0] = &context->line[0]; line[1] = &context->line[1];
 	Rectangle* rect = &context->rect;
 	Vector2 circle_center = context->circle_center;
 	TextState* text = &context->text;
@@ -241,7 +241,7 @@ void draw_stroke_preview(Context* context) {
 		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y }, (Vector2) { pos.x + s->thick/2, pos.y }, 1.0f, c);
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_line(line[0], pos, &(Stroke){
+			draw_line(*line[0], pos, &(Stroke){
 				MODE_LINE,
 				1.0f,
 				WHITE
