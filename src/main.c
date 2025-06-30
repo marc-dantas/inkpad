@@ -338,6 +338,7 @@ int main(void) {
 		DEFAULT_THICK,
 		GREEN,
 	};
+	context.text = (TextState){0};
 	
 	Mode saved_mode = context.s.mode;
 
@@ -359,7 +360,6 @@ int main(void) {
 	};
 	int page_selection = 0;
 	RenderTexture2D canvas = pages[page_selection];
-	TextState text = {0};
 
 	char status_text[128] = {0};
 	int status_timer = DEFAULT_SLEEP_TIME;
@@ -408,7 +408,7 @@ int main(void) {
 			DrawTextEx(global_font, page_number_text, (Vector2) { 20, canvas.texture.height - 40 }, 25.0f, 1.0f, WHITE);
 
 			// Input
-			if (!text.active) {
+			if (!context.text.active) {
 				// Thickness Operations
 				if (IsKeyPressed(KEY_ONE))   context.s.thick = DEFAULT_THICK;
 				if (IsKeyPressed(KEY_TWO))   context.s.thick = DEFAULT_THICK + 5.0f;
