@@ -512,8 +512,8 @@ int main(void) {
 			starting_pos += bb.width;
 
 			// Status text
-			DrawTextEx(global_font, "Status messages", (Vector2) { starting_pos + PANEL_PADDING, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 15, canvas.texture.height + PANEL_PADDING+35 }, 20.0f, 1.0f, GREEN);
+			DrawTextEx(global_font, "Status", (Vector2) { starting_pos + PANEL_PADDING, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 5, canvas.texture.height + PANEL_PADDING+25 }, W_WID/100, 1.0f, GREEN);
 			DrawRectangleLines(starting_pos + PANEL_PADDING, canvas.texture.height + PANEL_PADDING+20, W_WID - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
 			if (status_timer > 0) status_timer--;
 			else memset(status_text, 0, sizeof(status_text));
