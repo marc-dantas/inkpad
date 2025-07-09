@@ -417,6 +417,13 @@ int main(void) {
 				if (IsKeyPressed(KEY_FIVE))  context.s.thick = DEFAULT_THICK + 20.0f;
 				if (IsKeyPressed(KEY_ZERO))  context.s.thick = DEFAULT_THICK/2;
 
+				// Change Thickness by Mouse wheel
+				if (IsKeyDown(KEY_LEFT_ALT)) {
+					double wheel = GetMouseWheelMove() * 3;
+					if (wheel < 0) context.s.thick += context.s.thick >= DEFAULT_THICK/2 ? wheel : 0;
+					else if (wheel > 0) context.s.thick += context.s.thick <= DEFAULT_THICK + 20.0f ? wheel : 0;
+				}
+
 				// Quick erase
 				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
 				{ saved_mode = context.s.mode;
