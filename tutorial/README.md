@@ -119,6 +119,9 @@ To go back to the previous mode, release the `RMB`.
 To quickly draw a line, press and hold `LSHIFT` to change to **line mode** and use `LMB` to start
 drawing lines in your canvas.
 
+## Thickness by mouse wheel
+You can change the thickness of your stroke by holding left `ALT` and spinning the mouse wheel to make it smaller or bigger.
+
 ### Clear screen
 To clear the entire canvas, press `CTRL` + `X`.
 
