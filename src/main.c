@@ -16,11 +16,14 @@
 #define MAX_PAGES          5
 #define DEFAULT_SLEEP_TIME 240 // 2 seconds if running as 120 fps
 
+// System constants
+#define INKPAD_SAVEDIR "$HOME/" // Change this if you want something different
+
 // Stroke constants
 #define DEFAULT_THICK 8.0f
 
 typedef enum {
-	MODE_FREE,
+	MODE_FREE = 0,
 	MODE_LINE,
 	MODE_RECT,
 	MODE_TEXT,
@@ -62,10 +65,16 @@ void draw_message(unsigned int x, unsigned int y, char* text) {
 	DrawText(text, x, y, 25, WHITE);
 }
 
+void show_stroke_tooltip(Vector2 position, Stroke* s) {
+	int x = position.x;
+	int y = position.y;
+	Vector2 texpos = (Vector2) { x+s->thick/2, y+s->thick/2 };
+	DrawTextEx(global_font, TextFormat("%.2f", s->thick), texpos, 17.0f, 1.0f, GRAY);
+}
+
 void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	int w = 50;
 	int h = 50;
-	DrawRectangleLines(x, y, w, h, WHITE);
 	DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 	DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 	DrawTextEx(global_font, "MODE", (Vector2) { x + w + 5, y }, 15.0f, 1.0f, GRAY);
@@ -422,6 +431,7 @@ int main(void) {
 					double wheel = GetMouseWheelMove() * 3;
 					if (wheel < 0) context.s.thick += context.s.thick >= DEFAULT_THICK/2 ? wheel : 0;
 					else if (wheel > 0) context.s.thick += context.s.thick <= DEFAULT_THICK + 20.0f ? wheel : 0;
+					show_stroke_tooltip(context.mouse_current_position, &context.s);
 				}
 
 				// Quick erase
@@ -512,8 +522,9 @@ int main(void) {
 			DrawTextEx(global_font, "Save", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			draw_texture_button(&bb, save_icon, starting_pos, canvas.texture.height + PANEL_PADDING + 20);
 			if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-				save_canvas_as_image(canvas.texture, "./canvas.png");
-				strcpy(status_text, "Saved canvas successfully as canvas.png");
+				char* filename = TextFormat(INKPAD_SAVEDIR"inkpad_page%d.png", page_selection+1);
+				save_canvas_as_image(canvas.texture, filename);
+				strcpy(status_text, TextFormat("Saved canvas successfully as \"%s\".", filename));
 				status_timer = DEFAULT_SLEEP_TIME;
 			}
 			starting_pos += bb.width;
