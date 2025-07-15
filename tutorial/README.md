@@ -2,12 +2,6 @@
 Learn how to use Inkpad.
 You may find this document useful.
 
-## UI
-
-<img src="./res/ui.png" width="800" alt="Screenshot">
-
-> _Inkpad UI Reference_
-
 ## Stroke modes
 Inkpad works by changing **stroke modes**.
 The modes that can be selected are the following:
@@ -23,7 +17,7 @@ To enable the modes, use the following keys:
 - Line: `L`
 - Rect: `R`
 - Circle: `C`
-- Text: `T`
+- Text: `SPACE`
 - Erase: `X`
 
 ![Stroke](./res/stroke.png)
