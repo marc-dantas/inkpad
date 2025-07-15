@@ -466,9 +466,9 @@ int main(void) {
 						context.s.mode = MODE_ERASE;
 					}
 				}
-				if (IsKeyPressed(KEY_T)) context.s.mode = MODE_TEXT;
-				if (IsKeyPressed(KEY_R)) context.s.mode = MODE_RECT;
-				if (IsKeyPressed(KEY_C)) context.s.mode = MODE_CIRCLE;
+				if (IsKeyPressed(KEY_SPACE)) context.s.mode = MODE_TEXT;
+				if (IsKeyPressed(KEY_R))     context.s.mode = MODE_RECT;
+				if (IsKeyPressed(KEY_C))     context.s.mode = MODE_CIRCLE;
 
 				// Page shortcuts
 				if (IsKeyPressed(KEY_PERIOD))
