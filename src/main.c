@@ -403,8 +403,8 @@ int main(void) {
 			);
 
 			// Messages
-			Vector2 size = MeasureTextEx(global_font, "Inkpad v0.4 DEV", 13.0f, 1.0f);
-			DrawTextEx(global_font, "Inkpad v0.4 DEV", (Vector2) { W_WID-size.x-PANEL_PADDING, W_HEI-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
+			Vector2 size = MeasureTextEx(global_font, "Inkpad v0.4", 13.0f, 1.0f);
+			DrawTextEx(global_font, "Inkpad v0.4", (Vector2) { W_WID-size.x-PANEL_PADDING, W_HEI-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
 			
 			// Show Coordinates
 			char pos_text[32];
