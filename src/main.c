@@ -17,7 +17,11 @@
 #define DEFAULT_SLEEP_TIME 240 // 2 seconds if running as 120 fps
 
 // System constants
-#define INKPAD_SAVEDIR "$HOME/" // Change this if you want something different
+#ifdef _WIN32
+#    define INKPAD_HOME getenv("USERPROFILE")
+#else
+#    define INKPAD_HOME getenv("HOME")
+#endif
 
 // Stroke constants
 #define DEFAULT_THICK 8.0f
@@ -341,6 +345,8 @@ void save_canvas_as_image(Texture2D canvas, char* filename) {
 }
 
 int main(void) {
+	printf("INKPAD: HOME DIRECTORY: %s\n", INKPAD_HOME);
+
 	Context context = {0};
 	context.s = (Stroke){
 		MODE_FREE,
@@ -522,7 +528,8 @@ int main(void) {
 			DrawTextEx(global_font, "Save", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			draw_texture_button(&bb, save_icon, starting_pos, canvas.texture.height + PANEL_PADDING + 20);
 			if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-				char* filename = TextFormat(INKPAD_SAVEDIR"inkpad_page%d.png", page_selection+1);
+				char* home = INKPAD_HOME;
+				char* filename = TextFormat("%s/inkpad_page%d.png", home, page_selection+1);
 				save_canvas_as_image(canvas.texture, filename);
 				strcpy(status_text, TextFormat("Saved canvas successfully as \"%s\".", filename));
 				status_timer = DEFAULT_SLEEP_TIME;
