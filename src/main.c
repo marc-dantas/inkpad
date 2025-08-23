@@ -7,12 +7,11 @@
 #include "Px437_IBM_VGA_9x16.c"
 #include "Save.c"
 
-#define W_WID GetScreenWidth()
-#define W_HEI GetScreenHeight()
 #define BGCOLOR (Color){18, 18, 18, 255}
 
 // General constants
 #define PANEL_PADDING      15 // pixels
+#define PANEL_HEIGHT       90 // pixels
 #define MAX_PAGES          5
 #define DEFAULT_SLEEP_TIME 240 // 2 seconds if running as 120 fps
 
@@ -153,7 +152,7 @@ void draw_rect(Rectangle rect, Stroke* s) {
 	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s->thick, s->color);
 }
 
-void draw_canvas(Context* context) {
+void draw(Context* context) {
 	Stroke* s = &context->s;
 	Vector2* circle_center = &context->circle_center;
 	TextState* text = &context->text;
@@ -337,7 +336,7 @@ void draw_stroke_preview(Context* context) {
 	}
 }
 
-void save_canvas_as_image(Texture2D canvas, char* filename) {
+void save_canvas_as_image(Texture2D canvas, const char* filename) {
 	Image i = LoadImageFromTexture(canvas);
 	ImageFlipVertical(&i);
 	ExportImage(i, filename);
@@ -347,6 +346,7 @@ void save_canvas_as_image(Texture2D canvas, char* filename) {
 int main(void) {
 	printf("INKPAD: HOME DIRECTORY: %s\n", INKPAD_HOME);
 
+	
 	Context context = {0};
 	context.s = (Stroke){
 		MODE_FREE,
@@ -357,7 +357,11 @@ int main(void) {
 	
 	Mode saved_mode = context.s.mode;
 
-	InitWindow(W_WID, W_HEI, "Inkpad");
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
+	size_t window_width = GetScreenWidth();
+	size_t window_height = GetScreenHeight();
+
 	ToggleFullscreen();
 	HideCursor();
 
@@ -367,11 +371,11 @@ int main(void) {
 	
 	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
 	RenderTexture2D pages[MAX_PAGES] = {
-		LoadRenderTexture(W_WID, W_HEI - 100), // These 100 pixels is the height if the status panel
-		LoadRenderTexture(W_WID, W_HEI - 100),
-		LoadRenderTexture(W_WID, W_HEI - 100),
-		LoadRenderTexture(W_WID, W_HEI - 100),
-		LoadRenderTexture(W_WID, W_HEI - 100)
+		LoadRenderTexture(window_width, window_height), // These 100 pixels is the height if the status panel
+		LoadRenderTexture(window_width, window_height),
+		LoadRenderTexture(window_width, window_height),
+		LoadRenderTexture(window_width, window_height),
+		LoadRenderTexture(window_width, window_height)
 	};
 	int page_selection = 0;
 	RenderTexture2D canvas = pages[page_selection];
@@ -390,7 +394,8 @@ int main(void) {
 	while (!WindowShouldClose()) {
 		context.mouse_current_position = GetMousePosition();
 		BeginTextureMode(canvas);
-			draw_canvas(&context);
+			if (check_boundingbox((Rectangle){0, 0, window_width, window_height - PANEL_HEIGHT - context.s.thick/2}, context.mouse_current_position))
+				draw(&context);
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
@@ -408,9 +413,14 @@ int main(void) {
 				WHITE
 			);
 
+			// Draw panel
+			DrawRectangle(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, BLACK);
+			DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
+
 			// Messages
-			Vector2 size = MeasureTextEx(global_font, "Inkpad v0.4", 13.0f, 1.0f);
-			DrawTextEx(global_font, "Inkpad v0.4", (Vector2) { W_WID-size.x-PANEL_PADDING, W_HEI-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
+			char* version_text = "Inkpad v0.5 DEV";
+			Vector2 size = MeasureTextEx(global_font, version_text, 13.0f, 1.0f);
+			DrawTextEx(global_font, version_text, (Vector2) { window_width-size.x-PANEL_PADDING, window_height-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
 			
 			// Show Coordinates
 			char pos_text[32];
@@ -420,7 +430,7 @@ int main(void) {
 			// Page number
 			char page_number_text[16];
 			sprintf(page_number_text, "%d/%d", page_selection+1, MAX_PAGES);
-			DrawTextEx(global_font, page_number_text, (Vector2) { 20, canvas.texture.height - 40 }, 25.0f, 1.0f, WHITE);
+			DrawTextEx(global_font, page_number_text, (Vector2) { 20, window_height - PANEL_HEIGHT - 40 }, 25.0f, 1.0f, WHITE);
 
 			// Input
 			if (!context.text.active) {
@@ -432,6 +442,21 @@ int main(void) {
 				if (IsKeyPressed(KEY_FIVE))  context.s.thick = DEFAULT_THICK + 20.0f;
 				if (IsKeyPressed(KEY_ZERO))  context.s.thick = DEFAULT_THICK/2;
 
+				// Fullscreen
+				if (IsKeyPressed(KEY_F11)) {
+					if (!IsWindowFullscreen()) {
+						window_width = GetMonitorWidth(GetCurrentMonitor());
+						window_height = GetMonitorHeight(GetCurrentMonitor());
+					}
+					SetWindowSize(window_width, window_height);
+					ToggleFullscreen();
+				}
+
+				if (IsWindowResized()) {
+					window_width = GetScreenWidth();
+					window_height = GetScreenHeight();
+				}
+				
 				// Change Thickness by Mouse wheel
 				if (IsKeyDown(KEY_LEFT_ALT)) {
 					double wheel = GetMouseWheelMove() * 3;
@@ -492,17 +517,17 @@ int main(void) {
 			}
 
 			// Show stroke information
-			DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			show_stroke(PANEL_PADDING, canvas.texture.height + 20 + PANEL_PADDING, &context.s);
+			DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			show_stroke(PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, &context.s);
 			
 			// Color options
 			// BB means Bounding Box, not Bubble Gum! You bastard!
 			Rectangle bb = {0};
 			int starting_pos = PANEL_PADDING + bb.x + bb.width + 200;
-			DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			size_t len = sizeof(color_options)/sizeof(Color);
 			for (size_t i = 0; i < len; i++) {
-				draw_color_option(&bb, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING, color_options[i]);
+				draw_color_option(&bb, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20, color_options[i]);
 				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					context.s.color = color_options[i];
 				}
@@ -511,9 +536,9 @@ int main(void) {
 
 			// Draw page buttons
 			starting_pos += PANEL_PADDING;
-			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			for (size_t i = 0; i < MAX_PAGES; i++) {
-				draw_page_option(&bb, (size_t) page_selection == i, i+1, starting_pos + bb.width*i, canvas.texture.height + 20 + PANEL_PADDING);
+				draw_page_option(&bb, (size_t) page_selection == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					page_selection = i;
 					canvas = pages[page_selection];
@@ -525,11 +550,11 @@ int main(void) {
 
 			// Save button
 			starting_pos += PANEL_PADDING;
-			DrawTextEx(global_font, "Save", (Vector2) { starting_pos, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			draw_texture_button(&bb, save_icon, starting_pos, canvas.texture.height + PANEL_PADDING + 20);
+			DrawTextEx(global_font, "Save", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			draw_texture_button(&bb, save_icon, starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 			if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 				char* home = INKPAD_HOME;
-				char* filename = TextFormat("%s/inkpad_page%d.png", home, page_selection+1);
+				const char* filename = TextFormat("%s/inkpad_page%d.png", home, page_selection+1);
 				save_canvas_as_image(canvas.texture, filename);
 				strcpy(status_text, TextFormat("Saved canvas successfully as \"%s\".", filename));
 				status_timer = DEFAULT_SLEEP_TIME;
@@ -537,9 +562,9 @@ int main(void) {
 			starting_pos += bb.width;
 
 			// Status text
-			DrawTextEx(global_font, "Status", (Vector2) { starting_pos + PANEL_PADDING, canvas.texture.height + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 5, canvas.texture.height + PANEL_PADDING+25 }, W_WID/100, 1.0f, GREEN);
-			DrawRectangleLines(starting_pos + PANEL_PADDING, canvas.texture.height + PANEL_PADDING+20, W_WID - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
+			DrawTextEx(global_font, "Status", (Vector2) { starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+			DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 5, window_height - PANEL_HEIGHT + PANEL_PADDING+25 }, window_width/100, 1.0f, GREEN);
+			DrawRectangleLines(starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, window_width - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
 			if (status_timer > 0) status_timer--;
 			else memset(status_text, 0, sizeof(status_text));
 			
