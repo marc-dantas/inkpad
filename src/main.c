@@ -6,6 +6,7 @@
 #include "raylib.h"
 #include "Px437_IBM_VGA_9x16.c"
 #include "Save.c"
+#include "FXAA.c"
 
 #define BGCOLOR (Color){18, 18, 18, 255}
 
@@ -345,7 +346,6 @@ void save_canvas_as_image(Texture2D canvas, const char* filename) {
 
 int main(void) {
 	printf("INKPAD: HOME DIRECTORY: %s\n", INKPAD_HOME);
-
 	
 	Context context = {0};
 	context.s = (Stroke){
@@ -358,10 +358,17 @@ int main(void) {
 	Mode saved_mode = context.s.mode;
 
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+	SetConfigFlags(FLAG_MSAA_4X_HINT);
 	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
+
+	
 	size_t window_width = GetScreenWidth();
 	size_t window_height = GetScreenHeight();
 
+	Shader fxaa = LoadShaderFromMemory(0, fxaa_shader);
+	int resLoc = GetShaderLocation(fxaa, "resolution");
+	Vector2 res = { (float)window_width, (float)window_height };
+	SetShaderValue(fxaa, resLoc, &res, SHADER_UNIFORM_VEC2);
 	ToggleFullscreen();
 	HideCursor();
 
@@ -400,6 +407,7 @@ int main(void) {
 		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
 
+			BeginShaderMode(fxaa);
 			// Draw canvas
 			DrawTextureRec(
 				canvas.texture,
@@ -412,6 +420,7 @@ int main(void) {
 				(Vector2){0, 0},
 				WHITE
 			);
+			EndShaderMode();
 
 			// Draw panel
 			DrawRectangle(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, BLACK);
