@@ -1,5 +1,6 @@
 # Inkpad Tutorial
 Learn how to use Inkpad.
+
 You may find this document useful.
 
 ## Stroke modes
@@ -103,14 +104,17 @@ Its purpose it to log the main actions you take using Inkpad.
 Use the save button to export your current page as a  `png` image. You just need to click the button in the status panel.
 After saving successfully, it is possible to notice a log in the **Status message** section.
 
-> NOTE: It saves the image in the current working directory. 
+> NOTE: It saves the image in the user home directory.
 
 ### _Quick erase_
+
+> `RMB`: Right mouse button.
+
 To quickly change to erase mode press and hold `RMB` and use `LMB` to erase.
 To go back to the previous mode, release the `RMB`.
 
 ### _Quick line_
-To quickly draw a line, press and hold `LSHIFT` to change to **line mode** and use `LMB` to start
+To quickly draw a line, press and hold `LSHIFT` to quickly change to **line mode** and use `LMB` to start
 drawing lines in your canvas.
 
 ## Thickness by mouse wheel

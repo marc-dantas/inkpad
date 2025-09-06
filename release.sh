@@ -1,24 +1,25 @@
 #!/usr/bin/sh
 PLATFORM=$1
-if [ "$PLATFORM" = "win32" ]; then
+if [ "$PLATFORM" = "w" ]; then
 	echo "Releasing for Windows"
-	set -xe
 	chmod +x ./build-windows.sh
 	./build-windows.sh
 	mkdir -p dist
-	mkdir -p dist/x86_64-windows
-	mv bin/inkpad-x86_64-windows.exe dist/x86_64-windows/inkpad.exe
-	cp -R tutorial dist/x86_64-windows/
-elif [ "$PLATFORM" = "linux" ]; then
+	mkdir -p dist/inkpad-x64-windows
+	mv bin/inkpad-x86_64-windows.exe dist/inkpad-x64-windows/inkpad.exe
+	cp -R tutorial dist/inkpad-x64-windows/
+	zip -r dist/inkpad-x64-windows.zip dist/inkpad-x64-windows
+elif [ "$PLATFORM" = "l" ]; then
 	echo "Releasing for Linux"
-	set -xe
 	chmod +x ./build.sh
 	./build.sh
 	mkdir -p dist
-	mkdir -p dist/x86_64-linux
-	mv bin/inkpad-x86_64-linux dist/x86_64-linux/inkpad
-	cp -R tutorial dist/x86_64-linux/
+	mkdir -p dist/inkpad-x86_64-linux
+	mv bin/inkpad-x86_64-linux dist/inkpad-x86_64-linux/inkpad
+	cp -R tutorial dist/inkpad-x86_64-linux/
+	tar -czf dist/inkpad-x86_64-linux.tar.gz dist/inkpad-x86_64-linux
 else
 	echo "Invalid platform"
 	exit 1
 fi
+echo "Done"
