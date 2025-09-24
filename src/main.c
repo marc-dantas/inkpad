@@ -167,13 +167,12 @@ void draw(Context* context) {
 	Vector2 mouse_last_position = context->mouse_last_position;
 	
 	switch (s->mode) {
-	case MODE_FREE: {
+	case MODE_FREE:
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_stroke(mouse_last_position, mouse_current_position, s);
 		}
 		break;
-	}
-	case MODE_LINE: {
+	case MODE_LINE:
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			*line[0] = mouse_current_position;
 		}
@@ -182,8 +181,7 @@ void draw(Context* context) {
 			draw_line(*line[0], *line[1], s);
 		}
 		break;
-	}
-	case MODE_RECT: {
+	case MODE_RECT:
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			rect->x = mouse_current_position.x;
 			rect->y = mouse_current_position.y;
@@ -209,8 +207,7 @@ void draw(Context* context) {
 			draw_rect(*rect, s);
 		}
 		break;
-	}
-	case MODE_TEXT: {
+	case MODE_TEXT:
 		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 			text->pos = mouse_current_position;
 			text->active = true;
@@ -235,8 +232,7 @@ void draw(Context* context) {
 			}
 		}
 		break;
-	}
-	case MODE_ERASE: {
+	case MODE_ERASE:
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_stroke(mouse_last_position, mouse_current_position, &(Stroke) {
 				MODE_ERASE,
@@ -245,8 +241,7 @@ void draw(Context* context) {
 			});
 		}
 		break;
-	}
-	case MODE_CIRCLE: {
+	case MODE_CIRCLE:
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			*circle_center = mouse_current_position;
 		}
@@ -262,7 +257,6 @@ void draw(Context* context) {
 			DrawRing(*circle_center, c, c + s->thick, 0.0f, 360.0f, 80, s->color);
 		}
 		break;
-	}
 	}
 }
 
@@ -504,7 +498,7 @@ int main(void) {
 				}
 
 				// Quit key
-				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Q)) break;
+				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_ESCAPE)) break;
 				
 				// Change Thickness by Mouse wheel
 				if (IsKeyDown(KEY_LEFT_ALT)) {
