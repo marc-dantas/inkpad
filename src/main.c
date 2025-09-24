@@ -83,26 +83,28 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 	DrawTextEx(global_font, "MODE", (Vector2) { x + w + 5, y }, 15.0f, 1.0f, GRAY);
 	Vector2 texpos = (Vector2) { x + w + 5, y+20 };
+	char* text = "Unknown";
 	switch (s->mode) {
 	case MODE_FREE:
-		DrawTextEx(global_font, "Free", texpos, 30.0f, 1.0f, WHITE);
+		text = "Free";
 		break;
 	case MODE_LINE:
-		DrawTextEx(global_font, "Line", texpos, 30.0f, 1.0f, WHITE);
+		text = "Line";
 		break;
 	case MODE_ERASE:
-		DrawTextEx(global_font, "Erase", texpos, 30.0f, 1.0f, WHITE);
+		text = "Erase";
 		break;
 	case MODE_TEXT:
-		DrawTextEx(global_font, "Text", texpos, 30.0f, 1.0f, WHITE);
+		text = "Text";
 		break;
 	case MODE_RECT:
-		DrawTextEx(global_font, "Rect", texpos, 30.0f, 1.0f, WHITE);
+		text = "Rect";
 		break;
 	case MODE_CIRCLE:
-		DrawTextEx(global_font, "Circle", texpos, 30.0f, 1.0f, WHITE);
+		text = "Circle";
 		break;
 	}
+	DrawTextEx(global_font, text, texpos, 30.0f, 1.0f, WHITE);
 }
 
 void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, Color color) {
@@ -364,6 +366,7 @@ int main(void) {
 
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
 	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
+	SetExitKey(0);
 	
 	size_t window_width = GetScreenWidth();
 	size_t window_height = GetScreenHeight();
@@ -463,7 +466,7 @@ int main(void) {
 				if (IsKeyPressed(KEY_FIVE))  context.s.thick = DEFAULT_THICK + 20.0f;
 				if (IsKeyPressed(KEY_ZERO))  context.s.thick = DEFAULT_THICK/2;
 
-				// Fullscreen
+				// Fullscreen and window resizing
 				if (IsKeyPressed(KEY_F11)) {
 					if (!IsWindowFullscreen()) {
 						window_width = GetMonitorWidth(GetCurrentMonitor());
@@ -472,11 +475,13 @@ int main(void) {
 					SetWindowSize(window_width, window_height);
 					ToggleFullscreen();
 				}
-
 				if (IsWindowResized()) {
 					window_width = GetScreenWidth();
 					window_height = GetScreenHeight();
 				}
+
+				// Quit key
+				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Q)) break;
 				
 				// Change Thickness by Mouse wheel
 				if (IsKeyDown(KEY_LEFT_ALT)) {
