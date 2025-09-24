@@ -344,6 +344,11 @@ void save_canvas_as_image(Texture2D canvas, const char* filename) {
 	UnloadImage(i);
 }
 
+void set_status_caption(char* buffer, int* timer, const char* message) {
+	strcpy(buffer, message);
+	*timer = DEFAULT_SLEEP_TIME;
+}
+
 int main(void) {
 	printf("INKPAD: HOME DIRECTORY: %s\n", INKPAD_HOME);
 	
@@ -359,7 +364,6 @@ int main(void) {
 
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
 	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
-
 	
 	size_t window_width = GetScreenWidth();
 	size_t window_height = GetScreenHeight();
@@ -368,7 +372,6 @@ int main(void) {
 	int resLoc = GetShaderLocation(fxaa, "resolution");
 	Vector2 res = { (float)window_width, (float)window_height };
 	SetShaderValue(fxaa, resLoc, &res, SHADER_UNIFORM_VEC2);
-	HideCursor();
 
 	global_font = LoadFont_Px437();
 	Image i = { .data = SAVE_DATA, .width = SAVE_WIDTH, .height = SAVE_HEIGHT, .format = SAVE_FORMAT, .mipmaps = 1 };;
@@ -386,7 +389,9 @@ int main(void) {
 	RenderTexture2D canvas = pages[page_selection];
 
 	char status_text[128] = {0};
-	int status_timer = DEFAULT_SLEEP_TIME;
+	int status_timer = 0;
+
+	set_status_caption(status_text, &status_timer, "Welcome to Inkpad. Press F11 to toggle fullscreen.");
 	
 	SetTargetFPS(120);
 
@@ -398,9 +403,18 @@ int main(void) {
 
 	while (!WindowShouldClose()) {
 		context.mouse_current_position = GetMousePosition();
+
+		bool is_on_canvas = check_boundingbox(
+			(Rectangle) {
+				0, 0,
+				window_width,
+				window_height - PANEL_HEIGHT - context.s.thick/2
+			},
+			context.mouse_current_position
+		);
+		
 		BeginTextureMode(canvas);
-			if (check_boundingbox((Rectangle){0, 0, window_width, window_height - PANEL_HEIGHT - context.s.thick/2}, context.mouse_current_position))
-				draw(&context);
+			if (is_on_canvas) draw(&context);
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
@@ -498,8 +512,7 @@ int main(void) {
 						BeginTextureMode(canvas);
 						ClearBackground(BGCOLOR);				
 						EndTextureMode();
-						strcpy(status_text, "Cleared screen");
-						status_timer = DEFAULT_SLEEP_TIME;
+						set_status_caption(status_text, &status_timer, "Cleared screen");
 					} else {
 						context.s.mode = MODE_ERASE;
 					}
@@ -576,7 +589,12 @@ int main(void) {
 			else memset(status_text, 0, sizeof(status_text));
 			
 			// Draw stroke preview
-			draw_stroke_preview(&context);
+			if (!is_on_canvas)
+				ShowCursor();
+			else {
+				HideCursor();
+				draw_stroke_preview(&context);
+			}
 		EndDrawing();
 		context.mouse_last_position = context.mouse_current_position;
 	}
