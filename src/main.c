@@ -357,8 +357,7 @@ int main(void) {
 	
 	Mode saved_mode = context.s.mode;
 
-	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-	SetConfigFlags(FLAG_MSAA_4X_HINT);
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
 	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
 
 	
@@ -369,7 +368,6 @@ int main(void) {
 	int resLoc = GetShaderLocation(fxaa, "resolution");
 	Vector2 res = { (float)window_width, (float)window_height };
 	SetShaderValue(fxaa, resLoc, &res, SHADER_UNIFORM_VEC2);
-	ToggleFullscreen();
 	HideCursor();
 
 	global_font = LoadFont_Px437();
@@ -427,7 +425,7 @@ int main(void) {
 			DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
 
 			// Messages
-			char* version_text = "Inkpad v0.5";
+			char* version_text = "Inkpad v0.6 DEV";
 			Vector2 size = MeasureTextEx(global_font, version_text, 13.0f, 1.0f);
 			DrawTextEx(global_font, version_text, (Vector2) { window_width-size.x-PANEL_PADDING, window_height-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
 			
