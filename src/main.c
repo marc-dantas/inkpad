@@ -15,6 +15,7 @@
 #define PANEL_HEIGHT       90 // pixels
 #define MAX_PAGES          5
 #define DEFAULT_SLEEP_TIME 240 // 2 seconds if running as 120 fps
+#define CANCEL_KEY         KEY_ESCAPE // key to press to cancel action
 
 // System constants
 #ifdef _WIN32
@@ -48,6 +49,7 @@ typedef struct {
 } TextState;
 
 typedef struct {
+	bool cancel; // Flag to cancel the current stroke action being done
 	Stroke s;
 	Vector2 line[2];
 	Rectangle rect;
@@ -187,6 +189,11 @@ void draw(Context* context) {
 			rect->y = mouse_current_position.y;
 		}
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+			if (context->cancel) {
+				context->cancel = false;
+				break;
+			}
+			
 			if (mouse_current_position.x < rect->x) {
 				rect->width = rect->x - mouse_current_position.x;
 				rect->x = mouse_current_position.x;
@@ -209,6 +216,12 @@ void draw(Context* context) {
 			text->active = true;
 		}
 		if (text->active) {
+			if (context->cancel) {
+				text->active = false;
+				memset(text->content, 0, sizeof(text->content));
+				context->cancel = false;
+				break;
+			}
 			if (IsKeyPressed(KEY_ENTER)) {
 				DrawTextEx(global_font, text->content, (Vector2) { text->pos.x, text->pos.y - s->thick }, s->thick*2, 1.0f, s->color);
 				memset(text->content, 0, sizeof(text->content));
@@ -238,6 +251,10 @@ void draw(Context* context) {
 			*circle_center = mouse_current_position;
 		}
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+			if (context->cancel) {
+				context->cancel = false;
+				break;
+			}
 			int a, b, c;
 			a = circle_center->y - mouse_current_position.y;
 			b = circle_center->x - mouse_current_position.x;
@@ -279,7 +296,9 @@ void draw_stroke_preview(Context* context) {
 		DrawRectangleLinesEx((Rectangle) { pos.x - s->thick/2, pos.y - s->thick/2, s->thick, s->thick }, 1.0f, c);
 		DrawCircle(pos.x, pos.y, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			Rectangle preview_rect = *rect;
+			if (IsKeyPressed(CANCEL_KEY)) context->cancel = true;
+			if (context->cancel) break;
+ 			Rectangle preview_rect = *rect;
 			if (pos.x < preview_rect.x) {
 				preview_rect.width = preview_rect.x - pos.x;
 				preview_rect.x = pos.x;
@@ -302,6 +321,8 @@ void draw_stroke_preview(Context* context) {
 	case MODE_TEXT:
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 3.0f, c);
 		if (text->active) {
+			if (IsKeyPressed(CANCEL_KEY)) context->cancel = true;
+			if (context->cancel) break;
 			if (!IsKeyPressed(KEY_ENTER)) {
 				int text_wid = MeasureTextEx(global_font, text->content, s->thick*2, 1.0f).x;
 				DrawLineEx(
@@ -328,6 +349,8 @@ void draw_stroke_preview(Context* context) {
 		DrawRing(pos, s->thick/2, s->thick/1.5, 0.0f, 360.0f, 30, c);
 		DrawCircle(pos.x, pos.y, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+			if (IsKeyPressed(CANCEL_KEY)) context->cancel = true;
+			if (context->cancel) break;
 			DrawLineEx(circle_center, pos, 1.5f, WHITE);
 			int a, b, len;
 			a = circle_center.y - pos.y;
