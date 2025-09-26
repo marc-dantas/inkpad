@@ -11,11 +11,12 @@
 #define BGCOLOR (Color){18, 18, 18, 255}
 
 // General constants
-#define PANEL_PADDING      15 // pixels
-#define PANEL_HEIGHT       90 // pixels
-#define MAX_PAGES          5
-#define DEFAULT_SLEEP_TIME 240 // 2 seconds if running as 120 fps
+#define PANEL_PADDING      15         // gap between elements inside the panel (pixels)
+#define PANEL_HEIGHT       90         // height of the panel (pixels)
+#define MAX_PAGES          5          // number of pages
+#define DEFAULT_SLEEP_TIME 240        // time (in frames) to show a caption in status
 #define CANCEL_KEY         KEY_ESCAPE // key to press to cancel action
+#define MAX_HISTORY        10         // maximum undo actions that are stored
 
 // System constants
 #ifdef _WIN32
@@ -55,6 +56,7 @@ typedef struct {
 	Rectangle rect;
 	Vector2 circle_center;
 	TextState text;
+	RenderTexture2D* hist[MAX_HISTORY];
 	Vector2 mouse_last_position, mouse_current_position;
 } Context;
 
@@ -369,8 +371,29 @@ void set_status_caption(char* buffer, int* timer, const char* message) {
 }
 
 int main(void) {
-	printf("INKPAD: HOME DIRECTORY: %s\n", INKPAD_HOME);
+	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
+
+	// Initialization
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
+	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
+	SetTargetFPS(120);
+	SetExitKey(0);
+
+	// Loading assets and configuration
+	global_font = LoadFont_Px437();
+
+	Image i = { .data = SAVE_DATA, .width = SAVE_WIDTH, .height = SAVE_HEIGHT, .format = SAVE_FORMAT, .mipmaps = 1 };;
+	Texture2D save_icon = LoadTextureFromImage(i);
 	
+	size_t window_width = GetScreenWidth();
+	size_t window_height = GetScreenHeight();
+
+	Shader fxaa = LoadShaderFromMemory(0, fxaa_shader);
+	int resLoc = GetShaderLocation(fxaa, "resolution");
+	Vector2 res = { (float)window_width, (float)window_height };
+	SetShaderValue(fxaa, resLoc, &res, SHADER_UNIFORM_VEC2);
+
+	// Context and canvas
 	Context context = {0};
 	context.s = (Stroke){
 		MODE_FREE,
@@ -381,23 +404,7 @@ int main(void) {
 	
 	Mode saved_mode = context.s.mode;
 
-	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
-	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
-	SetExitKey(0);
-	
-	size_t window_width = GetScreenWidth();
-	size_t window_height = GetScreenHeight();
-
-	Shader fxaa = LoadShaderFromMemory(0, fxaa_shader);
-	int resLoc = GetShaderLocation(fxaa, "resolution");
-	Vector2 res = { (float)window_width, (float)window_height };
-	SetShaderValue(fxaa, resLoc, &res, SHADER_UNIFORM_VEC2);
-
-	global_font = LoadFont_Px437();
-	Image i = { .data = SAVE_DATA, .width = SAVE_WIDTH, .height = SAVE_HEIGHT, .format = SAVE_FORMAT, .mipmaps = 1 };;
-	Texture2D save_icon = LoadTextureFromImage(i);
-	
-	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
+	int page_selection = 0;
 	RenderTexture2D pages[MAX_PAGES] = {
 		LoadRenderTexture(window_width, window_height), // These 100 pixels is the height if the status panel
 		LoadRenderTexture(window_width, window_height),
@@ -405,22 +412,23 @@ int main(void) {
 		LoadRenderTexture(window_width, window_height),
 		LoadRenderTexture(window_width, window_height)
 	};
-	int page_selection = 0;
 	RenderTexture2D canvas = pages[page_selection];
-
-	char status_text[128] = {0};
-	int status_timer = 0;
-
-	set_status_caption(status_text, &status_timer, "Welcome to Inkpad. Press F11 to toggle fullscreen.");
-	
-	SetTargetFPS(120);
-
 	for (int i = 0; (size_t)i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
 		BeginTextureMode(pages[i]);
 		ClearBackground(BGCOLOR);
 		EndTextureMode();
 	}
 
+	// Interface
+	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
+
+	char status_text[128] = {0};
+	int status_timer = 0;
+
+	// Welcome message
+	set_status_caption(status_text, &status_timer, "Welcome to Inkpad. Press F11 to toggle fullscreen.");
+	
+	// Window
 	while (!WindowShouldClose()) {
 		context.mouse_current_position = GetMousePosition();
 
