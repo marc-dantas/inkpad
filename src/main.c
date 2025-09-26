@@ -49,14 +49,36 @@ typedef struct {
 	bool active;
 } TextState;
 
+
+typedef struct {
+	Image items[MAX_HISTORY];
+	size_t cursor;
+	size_t len;
+} History;
+
+void History_push(History* target, RenderTexture2D x) {
+	Image img = LoadImageFromTexture(x.texture);
+	if (target->len >= MAX_HISTORY) {
+		// Shift items
+		UnloadImage(target->items[0]);
+		for (int i = 1; i < MAX_HISTORY; i++)
+			target->items[i-1] = target->items[i];
+		target->len--;
+	}
+	ImageFlipVertical(&img);
+	target->items[target->len++] = img;
+}
+
 typedef struct {
 	bool cancel; // Flag to cancel the current stroke action being done
+	size_t page_selection;
+	RenderTexture2D canvas;
 	Stroke s;
 	Vector2 line[2];
 	Rectangle rect;
 	Vector2 circle_center;
 	TextState text;
-	RenderTexture2D* hist[MAX_HISTORY];
+	History history[MAX_PAGES];
 	Vector2 mouse_last_position, mouse_current_position;
 } Context;
 
@@ -370,6 +392,10 @@ void set_status_caption(char* buffer, int* timer, const char* message) {
 	*timer = DEFAULT_SLEEP_TIME;
 }
 
+void debug_text(char* txt, int x, int y) {
+	DrawTextEx(global_font, txt, (Vector2) { x, y }, 13.0f, 1.0f, GREEN);
+}
+
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
 
@@ -404,7 +430,6 @@ int main(void) {
 	
 	Mode saved_mode = context.s.mode;
 
-	int page_selection = 0;
 	RenderTexture2D pages[MAX_PAGES] = {
 		LoadRenderTexture(window_width, window_height), // These 100 pixels is the height if the status panel
 		LoadRenderTexture(window_width, window_height),
@@ -412,7 +437,8 @@ int main(void) {
 		LoadRenderTexture(window_width, window_height),
 		LoadRenderTexture(window_width, window_height)
 	};
-	RenderTexture2D canvas = pages[page_selection];
+	context.page_selection = 0;
+	context.canvas = pages[context.page_selection];
 	for (int i = 0; (size_t)i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
 		BeginTextureMode(pages[i]);
 		ClearBackground(BGCOLOR);
@@ -441,7 +467,13 @@ int main(void) {
 			context.mouse_current_position
 		);
 		
-		BeginTextureMode(canvas);
+		BeginTextureMode(context.canvas);
+			if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+				History* h = &context.history[context.page_selection];
+				if (h->cursor < h->len) h->len = h->cursor;
+				History_push(h, context.canvas);
+				h->cursor++;
+			}
 			if (is_on_canvas) draw(&context);
 		EndTextureMode();
 		BeginDrawing();
@@ -450,12 +482,12 @@ int main(void) {
 			BeginShaderMode(fxaa);
 			// Draw canvas
 			DrawTextureRec(
-				canvas.texture,
+				context.canvas.texture,
 			    (Rectangle){
 			    	0,
 			    	0,
-			    	(float)canvas.texture.width,
-			    	-(float)canvas.texture.height
+			    	(float)context.canvas.texture.width,
+			    	-(float)context.canvas.texture.height
 			    }, // Flips the texture so it doesn't look upside down bc of opengl shit
 				(Vector2){0, 0},
 				WHITE
@@ -478,7 +510,7 @@ int main(void) {
 
 			// Page number
 			char page_number_text[16];
-			sprintf(page_number_text, "%d/%d", page_selection+1, MAX_PAGES);
+			sprintf(page_number_text, "%ld/%d", context.page_selection+1, MAX_PAGES);
 			DrawTextEx(global_font, page_number_text, (Vector2) { 20, window_height - PANEL_HEIGHT - 40 }, 25.0f, 1.0f, WHITE);
 
 			// Input
@@ -507,6 +539,18 @@ int main(void) {
 
 				// Quit key
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_ESCAPE)) break;
+
+				// Undo
+				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
+					History* h = &context.history[context.page_selection];
+					if (h->cursor > 0) {
+						BeginTextureMode(context.canvas);
+							Texture2D t = LoadTextureFromImage(h->items[--h->cursor]);
+							DrawTexture(t, 0, 0, WHITE);
+						EndTextureMode();
+						set_status_caption(status_text, &status_timer, "Undid action");
+					}
+				}
 				
 				// Change Thickness by Mouse wheel
 				if (IsKeyDown(KEY_LEFT_ALT)) {
@@ -539,7 +583,7 @@ int main(void) {
 				if (IsKeyPressed(KEY_L)) context.s.mode = MODE_LINE;
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
-						BeginTextureMode(canvas);
+						BeginTextureMode(context.canvas);
 						ClearBackground(BGCOLOR);				
 						EndTextureMode();
 						set_status_caption(status_text, &status_timer, "Cleared screen");
@@ -553,16 +597,14 @@ int main(void) {
 
 				// Page shortcuts
 				if (IsKeyPressed(KEY_PERIOD))
-				{ page_selection = page_selection < MAX_PAGES-1 ? page_selection + 1 : page_selection;
-			      canvas = pages[page_selection];
-			      strcpy(status_text, TextFormat("Changed to page %d", page_selection + 1));
-  	  			  status_timer = DEFAULT_SLEEP_TIME;
+				{ context.page_selection = context.page_selection < MAX_PAGES-1 ? context.page_selection + 1 : context.page_selection;
+			      context.canvas = pages[context.page_selection];
+			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.page_selection + 1));
 				}
 				if (IsKeyPressed(KEY_COMMA))
-				{ page_selection = page_selection > 0 ? page_selection - 1 : page_selection;
-			      canvas = pages[page_selection];
-				  strcpy(status_text, TextFormat("Changed to page %d", page_selection + 1));
-	  			  status_timer = DEFAULT_SLEEP_TIME;
+				{ context.page_selection = context.page_selection > 0 ? context.page_selection - 1 : context.page_selection;
+			      context.canvas = pages[context.page_selection];
+			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.page_selection + 1));
   				}
 			}
 
@@ -589,12 +631,11 @@ int main(void) {
 			starting_pos += PANEL_PADDING;
 			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			for (size_t i = 0; i < MAX_PAGES; i++) {
-				draw_page_option(&bb, (size_t) page_selection == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
+				draw_page_option(&bb, (size_t) context.page_selection == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					page_selection = i;
-					canvas = pages[page_selection];
-					strcpy(status_text, TextFormat("Changed to page %d", page_selection + 1));
-	  				status_timer = DEFAULT_SLEEP_TIME;
+					context.page_selection = i;
+					context.canvas = pages[context.page_selection];
+					set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.page_selection + 1));
 				}
 			}
 			starting_pos += bb.width*MAX_PAGES;
@@ -605,10 +646,9 @@ int main(void) {
 			draw_texture_button(&bb, save_icon, starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 			if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 				char* home = INKPAD_HOME;
-				const char* filename = TextFormat("%s/inkpad_page%d.png", home, page_selection+1);
-				save_canvas_as_image(canvas.texture, filename);
-				strcpy(status_text, TextFormat("Saved canvas successfully as \"%s\".", filename));
-				status_timer = DEFAULT_SLEEP_TIME;
+				const char* filename = TextFormat("%s/inkpad_page%d.png", home, context.page_selection+1);
+				save_canvas_as_image(context.canvas.texture, filename);
+				set_status_caption(status_text, &status_timer, TextFormat("Saved canvas successfully as \"%s\".", filename));
 			}
 			starting_pos += bb.width;
 
@@ -630,7 +670,7 @@ int main(void) {
 		context.mouse_last_position = context.mouse_current_position;
 	}
 
-	UnloadRenderTexture(canvas);
+	UnloadRenderTexture(context.canvas);
 	CloseWindow();
 	return 0;
 }
