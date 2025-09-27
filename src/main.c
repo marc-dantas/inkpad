@@ -343,14 +343,22 @@ void draw_stroke_preview(Context* context) {
 			if (context->cancel) break;
 			if (!IsKeyPressed(KEY_ENTER)) {
 				int text_wid = MeasureTextEx(global_font, text->content, s->thick*2, 1.0f).x;
+				int pad = 15;
+				DrawRectangleLines(
+					text->pos.x            - pad,
+					text->pos.y - s->thick - pad,
+					text_wid    + s->thick + pad*2,
+					s->thick    + s->thick + pad*2,
+					s->color
+				); 
 				DrawLineEx(
 					(Vector2) {
-						text->pos.x + text_wid + 2,
-						text->pos.y + s->thick/2 + 2
+						text->pos.x + text_wid,
+						text->pos.y + s->thick/2
 					},
 					(Vector2) {
-						text->pos.x + text_wid + 2 + s->thick,
-						text->pos.y + s->thick/2 + 2,
+						text->pos.x + text_wid + s->thick,
+						text->pos.y + s->thick/2,
 					},
 					3.0f,
 					c
@@ -396,9 +404,10 @@ void debug_text(char* txt, int x, int y) {
 	DrawTextEx(global_font, txt, (Vector2) { x, y }, 13.0f, 1.0f, GREEN);
 }
 
+Context context = {0};
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
-
+	
 	// Initialization
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
 	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
@@ -420,7 +429,6 @@ int main(void) {
 	SetShaderValue(fxaa, resLoc, &res, SHADER_UNIFORM_VEC2);
 
 	// Context and canvas
-	Context context = {0};
 	context.s = (Stroke){
 		MODE_FREE,
 		DEFAULT_THICK,
