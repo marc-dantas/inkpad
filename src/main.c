@@ -544,7 +544,7 @@ int main(void) {
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
 					History* h = &context.history[context.page_selection];
 					if (h->cursor > 0) {
-						History_push(h, context.canvas); // Save state before undo to be able to redo
+						if (h->cursor == h->len) History_push(h, context.canvas); // Save state before undo to be able to redo
 						BeginTextureMode(context.canvas);
 							Texture2D t = LoadTextureFromImage(h->items[--h->cursor]);
 							DrawTexture(t, 0, 0, WHITE);
