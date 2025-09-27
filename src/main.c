@@ -544,11 +544,26 @@ int main(void) {
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
 					History* h = &context.history[context.page_selection];
 					if (h->cursor > 0) {
+						History_push(h, context.canvas); // Save state before undo to be able to redo
 						BeginTextureMode(context.canvas);
 							Texture2D t = LoadTextureFromImage(h->items[--h->cursor]);
 							DrawTexture(t, 0, 0, WHITE);
 						EndTextureMode();
+						UnloadTexture(t); // Avoid memory leak
 						set_status_caption(status_text, &status_timer, "Undid action");
+					}
+				}
+
+				// Redo
+				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y)) {
+					History* h = &context.history[context.page_selection];
+					if (h->cursor + 1 < h->len) {
+						BeginTextureMode(context.canvas);
+							Texture2D t = LoadTextureFromImage(h->items[++h->cursor]);
+							DrawTexture(t, 0, 0, WHITE);
+						EndTextureMode();
+						UnloadTexture(t); // Avoid memory leak
+						set_status_caption(status_text, &status_timer, "Redid action");
 					}
 				}
 				
