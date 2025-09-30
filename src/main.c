@@ -401,7 +401,7 @@ void set_status_caption(char* buffer, int* timer, const char* message) {
 }
 
 void debug_text(char* txt, int x, int y) {
-	DrawTextEx(global_font, txt, (Vector2) { x, y }, 13.0f, 1.0f, GREEN);
+	DrawTextEx(global_font, txt, (Vector2) { x, y }, 20.0f, 1.0f, GREEN);
 }
 
 Context context = {0};
@@ -478,15 +478,14 @@ int main(void) {
 		BeginTextureMode(context.canvas);
 			if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 				History* h = &context.history[context.page_selection];
-				if (h->cursor < h->len) h->len = h->cursor;
+				if (h->cursor < h->len) h->len = h->cursor; // cut loose the history list "tail"
 				History_push(h, context.canvas);
-				h->cursor++;
+				if (h->cursor < MAX_HISTORY) h->cursor++;
 			}
 			if (is_on_canvas) draw(&context);
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
-
 			BeginShaderMode(fxaa);
 			// Draw canvas
 			DrawTextureRec(
@@ -689,6 +688,8 @@ int main(void) {
 				HideCursor();
 				draw_stroke_preview(&context);
 			}
+			// debug_text(TextFormat("history cursor = %ld", context.history[context.page_selection].cursor), 50, 50);
+			// debug_text(TextFormat("history len = %ld", context.history[context.page_selection].len), 50, 70);
 		EndDrawing();
 		context.mouse_last_position = context.mouse_current_position;
 	}
@@ -697,3 +698,8 @@ int main(void) {
 	CloseWindow();
 	return 0;
 }
+
+
+
+
+
