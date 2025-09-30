@@ -65,7 +65,7 @@ void History_push(History* target, RenderTexture2D x) {
 			target->items[i-1] = target->items[i];
 		target->len--;
 	}
-	ImageFlipVertical(&img);
+	ImageFlipVertical(&img); // Flips the texture so it doesn't look upside down bc of opengl shit
 	target->items[target->len++] = img;
 }
 
@@ -478,7 +478,11 @@ int main(void) {
 		BeginTextureMode(context.canvas);
 			if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 				History* h = &context.history[context.page_selection];
-				if (h->cursor < h->len) h->len = h->cursor; // cut loose the history list "tail"
+				if (h->cursor < h->len) {
+					// Deallocate all snapshots after the cursor
+					for (int i = h->cursor+1; i < h->len; i++) UnloadImage(h->items[i]);
+					h->len = h->cursor; // cut loose the history list "tail"
+				}
 				History_push(h, context.canvas);
 				if (h->cursor < MAX_HISTORY) h->cursor++;
 			}
@@ -637,6 +641,8 @@ int main(void) {
 			// Color options
 			// BB means Bounding Box, not Bubble Gum! You bastard!
 			// what the hell is this comment man, am I crazy or wat?
+			// this is gonna turn into a madness really quickly
+			// btw what i was even thinking by doing this comment up there lmfao
 			Rectangle bb = {0};
 			int starting_pos = PANEL_PADDING + bb.x + bb.width + 200;
 			DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
