@@ -4,7 +4,7 @@
 #include <math.h>
 
 #include "raylib.h"
-#include "Px437_IBM_VGA_9x16.c"
+#include "IBMPlexMono-SemiBold.c"
 #include "Save.c"
 #include "FXAA.c"
 
@@ -108,7 +108,7 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 	DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 	DrawTextEx(global_font, "MODE", (Vector2) { x + w + 5, y }, 15.0f, 1.0f, GRAY);
-	Vector2 texpos = (Vector2) { x + w + 5, y+20 };
+	Vector2 texpos = (Vector2) { x + w + 5, y+10 };
 	char* text = "Unknown";
 	switch (s->mode) {
 	case MODE_FREE:
@@ -415,7 +415,7 @@ int main(void) {
 	SetExitKey(0);
 
 	// Loading assets and configuration
-	global_font = LoadFont_Px437();
+	global_font = LoadFont_IBMPlexMono_SemiBold();
 
 	Image i = { .data = SAVE_DATA, .width = SAVE_WIDTH, .height = SAVE_HEIGHT, .format = SAVE_FORMAT, .mipmaps = 1 };;
 	Texture2D save_icon = LoadTextureFromImage(i);
@@ -704,8 +704,3 @@ int main(void) {
 	CloseWindow();
 	return 0;
 }
-
-
-
-
-
