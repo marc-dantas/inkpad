@@ -105,28 +105,39 @@ void show_stroke_tooltip(Vector2 position, Stroke* s) {
 void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	int w = 50;
 	int h = 50;
-	DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
-	DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 	DrawTextEx(global_font, "MODE", (Vector2) { x + w + 5, y }, 15.0f, 1.0f, GRAY);
 	Vector2 texpos = (Vector2) { x + w + 5, y+10 };
 	char* text = "Unknown";
 	switch (s->mode) {
 	case MODE_FREE:
+		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
+		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 		text = "Free";
 		break;
 	case MODE_LINE:
+		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
+		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 		text = "Line";
 		break;
 	case MODE_ERASE:
+		DrawCircleLines(x + w/2, y + h/2, s->thick/2, s->color);
+		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 		text = "Erase";
 		break;
 	case MODE_TEXT:
+		int text_size = s->thick*2;
+		Vector2 size = MeasureTextEx(global_font, "T", text_size, 1.0f);
+		DrawRectangleLines(x, y, w, h, s->color);
+		DrawTextEx(global_font, "T", (Vector2) { x + w/2 - size.x/2, y + h/2 - size.y/2 }, text_size, 1.0f, s->color);
 		text = "Text";
 		break;
 	case MODE_RECT:
+		DrawRectangle(x + w/2 - s->thick/2, y + h/2 - s->thick/2, s->thick, s->thick, s->color);
+		DrawRectangleLines(x + w/2 - s->thick/2 - 4, y + h/2 - s->thick/2 - 4, s->thick + 8, s->thick + 8, s->color);
 		text = "Rect";
 		break;
 	case MODE_CIRCLE:
+		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		text = "Circle";
 		break;
 	}
@@ -244,10 +255,11 @@ void draw(Context* context) {
 				break;
 			}
 			if (IsKeyPressed(KEY_ENTER)) {
-				DrawTextEx(global_font, text->content, (Vector2) { text->pos.x, text->pos.y - s->thick }, s->thick*2, 1.0f, s->color);
+				int text_size = s->thick*3;
+				DrawTextEx(global_font, text->content, (Vector2) { text->pos.x, text->pos.y - text_size/2 }, text_size, 1.0f, s->color);
 				memset(text->content, 0, sizeof(text->content));
 				text->active = false;
-			} else if (IsKeyPressed(KEY_BACKSPACE)) {
+			} else if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
 				int last = strlen(text->content) > 0 ? strlen(text->content)-1 : 0;
 				text->content[last] = 0;
 			} else {
@@ -342,28 +354,37 @@ void draw_stroke_preview(Context* context) {
 			if (IsKeyPressed(CANCEL_KEY)) context->cancel = true;
 			if (context->cancel) break;
 			if (!IsKeyPressed(KEY_ENTER)) {
-				int text_wid = MeasureTextEx(global_font, text->content, s->thick*2, 1.0f).x;
+				int text_size = s->thick*3;
+				int text_wid = MeasureTextEx(global_font, text->content, text_size, 1.0f).x;
 				int pad = 15;
+				int cursor_wid = text_size/2;
 				DrawRectangleLines(
-					text->pos.x            - pad,
-					text->pos.y - s->thick - pad,
-					text_wid    + s->thick + pad*2,
-					s->thick    + s->thick + pad*2,
+					text->pos.x               - pad,
+					text->pos.y - text_size/2 - pad,
+					text_wid    + cursor_wid  + pad*2,
+					text_size                 + pad*2,
 					s->color
-				); 
+				);
 				DrawLineEx(
 					(Vector2) {
 						text->pos.x + text_wid,
-						text->pos.y + s->thick/2
-					},
+						text->pos.y + text_size/2 - text_size*0.1
+					}, // x
 					(Vector2) {
-						text->pos.x + text_wid + s->thick,
-						text->pos.y + s->thick/2,
-					},
+						text->pos.x + text_wid + cursor_wid,
+						text->pos.y + text_size/2 - text_size*0.1,
+					}, // y
 					3.0f,
 					c
 				);
-				DrawTextEx(global_font, text->content, (Vector2) { text->pos.x, text->pos.y - s->thick }, s->thick*2, 1.0f, WHITE);
+				DrawTextEx(
+					global_font,
+					text->content,
+					(Vector2) { text->pos.x, text->pos.y - text_size/2 },
+					text_size,
+					1.0f,
+					WHITE
+				);
 			}
 		}
 		break;
