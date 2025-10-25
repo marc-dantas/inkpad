@@ -3,6 +3,10 @@ Learn how to use Inkpad.
 
 You may find this document useful.
 
+## Useful topics
+- [Keybindings](#keybindings)
+- [Utility](#utility)
+
 ## Stroke modes
 Inkpad works by changing **stroke modes**.
 The modes that can be selected are the following:
@@ -117,11 +121,28 @@ To go back to the previous mode, release the `RMB`.
 To quickly draw a line, press and hold `LSHIFT` to quickly change to **line mode** and use `LMB` to start
 drawing lines in your canvas.
 
-## Thickness by mouse wheel
+### Thickness by mouse wheel
 You can change the thickness of your stroke by holding left `ALT` and spinning the mouse wheel to make it smaller or bigger.
 
 ### Clear screen
 To clear the entire canvas, press `CTRL` + `X`.
+
+## Keybindings
+Simple table containing all keybindings for the software
+
+| Keybinding    | Description                          |
+|:-------------:|:-------------------------------------|
+| `Ctrl`+`ESC`  | Exit Inkpad                          |
+| `ESC`         | Cancel action                        |
+| `.`           | Move to page right                   |
+| `0`-`5`       | Set stroke thickness                 |
+| `A`           | Set stroke mode to Free              |
+| `L`           | Set stroke mode to Line              |
+| `R`           | Set stroke mode to Rect              |
+| `C`           | Set stroke mode to Circle            |
+| `SPACE`       | Set stroke mode to Text              |
+| `X`           | Set stroke mode to Erase             |
+| `Ctrl`+`X`    | Clear entire canvas of current page  |
 
 ---
 
