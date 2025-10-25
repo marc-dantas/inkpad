@@ -531,7 +531,7 @@ int main(void) {
 			DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
 
 			// Messages
-			char* version_text = "Inkpad v0.6 DEV";
+			char* version_text = "Inkpad v0.6";
 			Vector2 size = MeasureTextEx(global_font, version_text, 13.0f, 1.0f);
 			DrawTextEx(global_font, version_text, (Vector2) { window_width-size.x-PANEL_PADDING, window_height-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
 			
