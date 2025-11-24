@@ -11,7 +11,7 @@ if [ "$PLATFORM" = "w" ]; then
 	zip -r dist/inkpad-x64-windows.zip dist/inkpad-x64-windows
 elif [ "$PLATFORM" = "l" ]; then
 	echo "Releasing for Linux"
-	chmod +x ./build.sh
+	chmod +x ./build-linux.sh
 	./build.sh
 	mkdir -p dist
 	mkdir -p dist/inkpad-x86_64-linux
