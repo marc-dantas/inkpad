@@ -4,11 +4,12 @@
 #include <math.h>
 
 #include "raylib.h"
+
 #include "IBMPlexMono-SemiBold.c"
 #include "Save.c"
 #include "FXAA.c"
 
-#define BGCOLOR (Color){18, 18, 18, 255}
+#define DEFAULT_BGCOLOR (Color){18, 18, 18, 255}
 
 // General constants
 #define PANEL_PADDING      15         // gap between elements inside the panel (pixels)
@@ -49,7 +50,6 @@ typedef struct {
 	bool active;
 } TextState;
 
-
 typedef struct {
 	Image items[MAX_HISTORY];
 	size_t cursor;
@@ -83,6 +83,13 @@ typedef struct {
 } Context;
 
 Font global_font;
+
+bool color_eq(Color a, Color b) {
+	return (a.r==b.r &&
+			a.g==b.g &&
+			a.b==b.b &&
+			a.a==b.a);
+}
 
 void draw_stroke(Vector2 start, Vector2 end, Stroke *s) {
 	float thick = s->thick;
@@ -144,13 +151,16 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	DrawTextEx(global_font, text, texpos, 30.0f, 1.0f, WHITE);
 }
 
-void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, Color color) {
-	DrawRectangle(x, y, 50, 50, color);
-	DrawRectangleLines(x-1, y-1, 52, 52, WHITE);
-	boundingbox->x = x;
-	boundingbox->y = y;
-	boundingbox->width = 50;
-	boundingbox->height = 50;
+void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, bool selected, Color color) {
+	Rectangle rec = (Rectangle){
+		x, y, 50, 50
+	};
+	DrawRectangle(rec.x, rec.y, rec.width, rec.height, color);
+	DrawRectangleLinesEx(rec, selected ? 4.0f : 1.0f, WHITE);
+	boundingbox->x      = rec.x;
+	boundingbox->y      = rec.y;
+	boundingbox->width  = rec.width;
+	boundingbox->height = rec.height;
 }
 
 void draw_page_option(Rectangle* boundingbox, bool selected, int number, unsigned int x, unsigned int y) {
@@ -273,7 +283,7 @@ void draw(Context* context) {
 			draw_stroke(mouse_last_position, mouse_current_position, &(Stroke) {
 				MODE_ERASE,
 				s->thick,
-				BGCOLOR,
+				DEFAULT_BGCOLOR,
 			});
 		}
 		break;
@@ -470,7 +480,7 @@ int main(void) {
 	context.canvas = pages[context.page_selection];
 	for (int i = 0; (size_t)i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
 		BeginTextureMode(pages[i]);
-		ClearBackground(BGCOLOR);
+		ClearBackground(DEFAULT_BGCOLOR);
 		EndTextureMode();
 	}
 
@@ -631,7 +641,7 @@ int main(void) {
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
 						BeginTextureMode(context.canvas);
-						ClearBackground(BGCOLOR);				
+						ClearBackground(DEFAULT_BGCOLOR);				
 						EndTextureMode();
 						set_status_caption(status_text, &status_timer, "Cleared screen");
 					} else {
@@ -669,7 +679,8 @@ int main(void) {
 			DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			size_t len = sizeof(color_options)/sizeof(Color);
 			for (size_t i = 0; i < len; i++) {
-				draw_color_option(&bb, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20, color_options[i]);
+				bool selected = color_eq(context.s.color, color_options[i]);
+				draw_color_option(&bb, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20, selected, color_options[i]);
 				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					context.s.color = color_options[i];
 				}
