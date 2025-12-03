@@ -507,17 +507,19 @@ int main(void) {
 		);
 		
 		BeginTextureMode(context.canvas);
-			if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-				History* h = &context.history[context.page_selection];
-				if (h->cursor < h->len) {
-					// Deallocate all snapshots after the cursor
-					for (int i = h->cursor+1; i < h->len; i++) UnloadImage(h->items[i]);
-					h->len = h->cursor; // cut loose the history list "tail"
+			if (is_on_canvas) {
+				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+					History* h = &context.history[context.page_selection];
+					if (h->cursor < h->len) {
+						// Deallocate all snapshots after the cursor
+						for (int i = h->cursor+1; i < h->len; i++) UnloadImage(h->items[i]);
+						h->len = h->cursor; // cut loose the history list "tail"
+					}
+					History_push(h, context.canvas);
+					if (h->cursor < MAX_HISTORY) h->cursor++;
 				}
-				History_push(h, context.canvas);
-				if (h->cursor < MAX_HISTORY) h->cursor++;
+				draw(&context);
 			}
-			if (is_on_canvas) draw(&context);
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
