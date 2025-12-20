@@ -13,7 +13,7 @@ Get pre-built Inkpad binaries in the [releases page](https://github.com/marc-dan
 #### Dependencies
 Inkpad depends on [Raylib](https://www.raylib.com/).
 
-#### Intruction
+#### Instruction
 Clone the repository and build Inkpad using [`nob`](https://github.com/tsoding/nob.h).
 
 Provide one of the following command line arguments below to `nob` executable to build for different platforms:
