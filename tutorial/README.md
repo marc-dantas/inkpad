@@ -132,7 +132,7 @@ Simple table containing all keybindings for the software
 
 | Keybinding    | Description                          |
 |:-------------:|:-------------------------------------|
-| `Ctrl`+`ESC`  | Exit Inkpad                          |
+| `Ctrl`+`Q`    | Exit Inkpad                          |
 | `ESC`         | Cancel action                        |
 | `.`           | Move to page right                   |
 | `0`-`5`       | Set stroke thickness                 |
