@@ -94,19 +94,15 @@ void History_push(History* target, RenderTexture2D snapshot) {
 }
 
 typedef struct {
-	bool cancel; // Flag to cancel the current stroke action being done
-	size_t current_page;
-	RenderTexture2D* canvas;
-	Stroke s;
-	Vector2 line[2];
-	Rectangle rect;
-	Vector2 circle_center;
-	TextState text;
-	HistoryList history;
-	Vector2 mouse_last_position, mouse_current_position;
+	bool cancel;             // Flag to cancel the current stroke action being done
+	size_t current_page;     // Index of the current page selected
+	RenderTexture2D* canvas; // Current canvas object
+	Stroke s;                // Current stroke state
+	Vector2 last_point;      // Used to save the previous point clicked while holding LMB
+	TextState text;          // Current text state
+	HistoryList history;     // List of all histories across the pages
+	Vector2 mouse_last_position, mouse_current_position; 
 } Context;
-
-Font global_font;
 
 // I wish C had operator overloading...
 bool color_eq(Color a, Color b) {
@@ -116,12 +112,9 @@ bool color_eq(Color a, Color b) {
 			a.a==b.a);
 }
 
-void draw_stroke(Vector2 start, Vector2 end, Stroke *s) {
-	float thick = s->thick;
-	Color color = s->color;
-	DrawLineEx(start, end, thick, color);
-	DrawCircleV(end, thick/2, color);
-}
+// Global context and font
+static Font global_font;
+static Context context = {0};
 
 void draw_message(unsigned int x, unsigned int y, char* text) {
 	DrawText(text, x, y, 25, WHITE);
@@ -217,6 +210,15 @@ bool check_boundingbox(Rectangle bb, Vector2 pos) {
            (pos.y <= bb.y + bb.height);
 }
 
+// Modes //
+
+void draw_free(Vector2 start, Vector2 end, Stroke *s) {
+	float thick = s->thick;
+	Color color = s->color;
+	DrawLineEx(start, end, thick, color);
+	DrawCircleV(end, thick/2, color);
+}
+
 void draw_line(Vector2 start, Vector2 end, Stroke* s) {
 	DrawCircleV(start, s->thick/2, s->color);
 	DrawLineEx(start, end, s->thick, s->color);
@@ -227,54 +229,55 @@ void draw_rect(Rectangle rect, Stroke* s) {
 	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s->thick, s->color);
 }
 
+// Main draw function that handles when you click LMB
 void draw(Context* context) {
 	Stroke* s = &context->s;
-	Vector2* circle_center = &context->circle_center;
 	TextState* text = &context->text;
-	Rectangle* rect = &context->rect;
-	Vector2* line[2]; line[0] = &context->line[0]; line[1] = &context->line[1];
+	Vector2* last_point = &context->last_point;
 	Vector2 mouse_current_position = context->mouse_current_position;
 	Vector2 mouse_last_position = context->mouse_last_position;
 	
 	switch (s->mode) {
 	case MODE_FREE:
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_stroke(mouse_last_position, mouse_current_position, s);
+			draw_free(mouse_last_position, mouse_current_position, s);
 		}
 		break;
 	case MODE_LINE:
-		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			*line[0] = mouse_current_position;
-		}
-		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-			*line[1] = mouse_current_position;
-			draw_line(*line[0], *line[1], s);
-		}
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+			*last_point = mouse_current_position;
+		
+		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
+			draw_line(*last_point, mouse_current_position, s);
 		break;
 	case MODE_RECT:
-		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			rect->x = mouse_current_position.x;
-			rect->y = mouse_current_position.y;
-		}
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+			*last_point = mouse_current_position;
+		
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
 			if (context->cancel) {
 				context->cancel = false;
 				break;
 			}
+
+			Rectangle rect = {0};
 			
-			if (mouse_current_position.x < rect->x) {
-				rect->width = rect->x - mouse_current_position.x;
-				rect->x = mouse_current_position.x;
+			if (mouse_current_position.x < last_point->x) {
+				rect.width = last_point->x - mouse_current_position.x;
+				rect.x = mouse_current_position.x;
 			} else {	
-				rect->width = mouse_current_position.x - rect->x;
+				rect.width = mouse_current_position.x - last_point->x;
+				rect.x = last_point->x;
 			}
-			if (mouse_current_position.y < rect->y) {
-				rect->height = rect->y - mouse_current_position.y;
-				rect->y = mouse_current_position.y;
+			
+			if (mouse_current_position.y < last_point->y) {
+				rect.height = last_point->y - mouse_current_position.y;
+				rect.y = mouse_current_position.y;
 			} else {
-				rect->height = mouse_current_position.y - rect->y;
+				rect.height = mouse_current_position.y - last_point->y;
+				rect.y = last_point->y;
 			}
-			draw_rect(*rect, s);
+			draw_rect(rect, s);
 		}
 		break;
 	case MODE_TEXT:
@@ -305,7 +308,7 @@ void draw(Context* context) {
 		break;
 	case MODE_ERASE:
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_stroke(mouse_last_position, mouse_current_position, &(Stroke) {
+			draw_free(mouse_last_position, mouse_current_position, &(Stroke) {
 				MODE_ERASE,
 				s->thick,
 				DEFAULT_BGCOLOR,
@@ -314,7 +317,7 @@ void draw(Context* context) {
 		break;
 	case MODE_CIRCLE:
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			*circle_center = mouse_current_position;
+			*last_point = mouse_current_position;
 		}
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
 			if (context->cancel) {
@@ -322,20 +325,20 @@ void draw(Context* context) {
 				break;
 			}
 			int a, b, c;
-			a = circle_center->y - mouse_current_position.y;
-			b = circle_center->x - mouse_current_position.x;
+			a = last_point->y - mouse_current_position.y;
+			b = last_point->x - mouse_current_position.x;
 			c = sqrt(a*a + b*b);
-			DrawRing(*circle_center, c, c + s->thick, 0.0f, 360.0f, 80, s->color);
+			DrawRing(*last_point, c, c + s->thick, 0.0f, 360.0f, 80, s->color);
 		}
 		break;
 	}
 }
 
-void draw_stroke_preview(Context* context) {
+// Function to handle the drawing of the stroke before you press LMB (preview)
+void draw_preview(Context* context) {
 	Vector2 pos = context->mouse_current_position;
-	Vector2* line[2]; line[0] = &context->line[0]; line[1] = &context->line[1];
-	Rectangle* rect = &context->rect;
-	Vector2 circle_center = context->circle_center;
+	
+	Vector2* last_point = &context->last_point;
 	TextState* text = &context->text;
 	Stroke* s = &context->s;
 	
@@ -350,7 +353,7 @@ void draw_stroke_preview(Context* context) {
 		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y }, (Vector2) { pos.x + s->thick/2, pos.y }, 1.0f, c);
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_line(*line[0], pos, &(Stroke){
+			draw_line(*last_point, pos, &(Stroke){
 				MODE_LINE,
 				1.0f,
 				WHITE
@@ -360,23 +363,26 @@ void draw_stroke_preview(Context* context) {
 	case MODE_RECT:
 		DrawRectangleLinesEx((Rectangle) { pos.x - s->thick/2, pos.y - s->thick/2, s->thick, s->thick }, 1.0f, c);
 		DrawCircle(pos.x, pos.y, 1.0f, c);
+		
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			if (IsKeyPressed(CANCEL_KEY)) context->cancel = true;
 			if (context->cancel) break;
- 			Rectangle preview_rect = *rect;
-			if (pos.x < preview_rect.x) {
-				preview_rect.width = preview_rect.x - pos.x;
-				preview_rect.x = pos.x;
+ 			Rectangle rect = {0};
+			if (pos.x < last_point->x) {
+				rect.width = last_point->x - pos.x;
+				rect.x = pos.x;
 			} else {
-				preview_rect.width = pos.x - preview_rect.x;
+				rect.width = pos.x - last_point->x;
+				rect.x = last_point->x;
 			}
-			if (pos.y < preview_rect.y) {
-				preview_rect.height = preview_rect.y - pos.y;
-				preview_rect.y = pos.y;
+			if (pos.y < last_point->y) {
+				rect.height = last_point->y - pos.y;
+				rect.y = pos.y;
 			} else {
-				preview_rect.height = pos.y - preview_rect.y;
+				rect.height = pos.y - last_point->y;
+				rect.y = last_point->y;
 			}
-			draw_rect(preview_rect, &(Stroke) {
+			draw_rect(rect, &(Stroke) {
 				MODE_RECT,
 				1.0f,
 				WHITE
@@ -433,12 +439,12 @@ void draw_stroke_preview(Context* context) {
 		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
 			if (IsKeyPressed(CANCEL_KEY)) context->cancel = true;
 			if (context->cancel) break;
-			DrawLineEx(circle_center, pos, 1.5f, WHITE);
+			DrawLineEx(*last_point, pos, 1.5f, WHITE);
 			int a, b, len;
-			a = circle_center.y - pos.y;
-			b = circle_center.x - pos.x;
+			a = last_point->y - pos.y;
+			b = last_point->x - pos.x;
 			len = sqrt(a*a + b*b);
-			DrawCircleLinesV(circle_center, len, WHITE);
+			DrawCircleLinesV(*last_point, len, WHITE);
 		}
 		break;
 	}
@@ -460,7 +466,7 @@ void debug_text(char* txt, int x, int y) {
 	DrawTextEx(global_font, txt, (Vector2) { x, y }, 20.0f, 1.0f, GREEN);
 }
 
-Context context = {0};
+
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
 	
@@ -756,7 +762,7 @@ int main(void) {
 				ShowCursor();
 			else {
 				HideCursor();
-				draw_stroke_preview(&context);
+				draw_preview(&context);
 			}
 			// debug_text(TextFormat("history cursor = %ld", context.history[context.current_page].cursor), 50, 50);
 			// debug_text(TextFormat("history len = %ld", context.history[context.current_page].len), 50, 70);
@@ -768,11 +774,3 @@ int main(void) {
 	CloseWindow();
 	return 0;
 }
-
-
-
-
-
-
-
-
