@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <math.h>
 
 #include "raylib.h"
@@ -19,7 +20,6 @@
 #define MAX_PAGES          5          // number of pages
 #define DEFAULT_SLEEP_TIME 240        // time (in frames) to show a caption in status
 #define CANCEL_KEY         KEY_ESCAPE // key to press to cancel action
-#define MAX_HISTORY        10         // maximum undo actions that are stored
 
 // System constants
 #ifdef _WIN32
@@ -27,6 +27,27 @@
 #else
 #    define INKPAD_HOME getenv("HOME")
 #endif
+
+#define da_reserve(da, expected_capacity)                                              \
+    do {                                                                               \
+        if ((expected_capacity) > (da)->capacity) {                                    \
+            if ((da)->capacity == 0) {                                                 \
+                (da)->capacity = 256;                                                  \
+            }                                                                          \
+            while ((expected_capacity) > (da)->capacity) {                             \
+                (da)->capacity *= 2;                                                   \
+            }                                                                          \
+            (da)->items = realloc((da)->items, (da)->capacity * sizeof(*(da)->items)); \
+            assert((da)->items != NULL && "Buy more RAM lol");                         \
+        }                                                                              \
+    } while (0)
+
+// Append an item to a dynamic array
+#define da_append(da, item)                  \
+    do {                                     \
+        da_reserve((da), (da)->count + 1);   \
+        (da)->items[(da)->count++] = (item); \
+    } while (0)
 
 // Stroke constants
 #define DEFAULT_THICK 8.0f
@@ -53,39 +74,41 @@ typedef struct {
 } TextState;
 
 typedef struct {
-	Image items[MAX_HISTORY];
+	Image *items;
+	size_t count;
+	size_t capacity;
+	
 	size_t cursor;
-	size_t len;
 } History;
 
-void History_push(History* target, RenderTexture2D x) {
-	Image img = LoadImageFromTexture(x.texture);
-	if (target->len >= MAX_HISTORY) {
-		// Shift items
-		UnloadImage(target->items[0]);
-		for (int i = 1; i < MAX_HISTORY; i++)
-			target->items[i-1] = target->items[i];
-		target->len--;
-	}
+typedef struct {
+	History *items;
+	size_t count;
+	size_t capacity;
+} HistoryList;
+
+void History_push(History* target, RenderTexture2D snapshot) {
+	Image img = LoadImageFromTexture(snapshot.texture);
 	ImageFlipVertical(&img); // Flips the texture so it doesn't look upside down bc of opengl shit
-	target->items[target->len++] = img;
+	da_append(target, img);
 }
 
 typedef struct {
 	bool cancel; // Flag to cancel the current stroke action being done
-	size_t page_selection;
-	RenderTexture2D canvas;
+	size_t current_page;
+	RenderTexture2D* canvas;
 	Stroke s;
 	Vector2 line[2];
 	Rectangle rect;
 	Vector2 circle_center;
 	TextState text;
-	History history[MAX_PAGES];
+	HistoryList history;
 	Vector2 mouse_last_position, mouse_current_position;
 } Context;
 
 Font global_font;
 
+// I wish C had operator overloading...
 bool color_eq(Color a, Color b) {
 	return (a.r==b.r &&
 			a.g==b.g &&
@@ -477,9 +500,11 @@ int main(void) {
 		LoadRenderTexture(window_width, window_height),
 		LoadRenderTexture(window_width, window_height)
 	};
-	context.page_selection = 0;
-	context.canvas = pages[context.page_selection];
+	context.current_page = 0;
+	context.canvas = &pages[context.current_page];
+
 	for (int i = 0; (size_t)i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
+		da_append(&context.history, (History){0});
 		BeginTextureMode(pages[i]);
 		ClearBackground(DEFAULT_BGCOLOR);
 		EndTextureMode();
@@ -507,17 +532,20 @@ int main(void) {
 			context.mouse_current_position
 		);
 		
-		BeginTextureMode(context.canvas);
+		BeginTextureMode(*context.canvas);
 			if (is_on_canvas) {
 				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					History* h = &context.history[context.page_selection];
-					if (h->cursor < h->len) {
+					History* h = &context.history.items[context.current_page];
+					if (h->cursor < h->count) {
 						// Deallocate all snapshots after the cursor
-						for (int i = h->cursor+1; i < h->len; i++) UnloadImage(h->items[i]);
-						h->len = h->cursor; // cut loose the history list "tail"
+						for (int i = h->cursor+1; i < h->count; i++) {
+							UnloadImage(h->items[i]);
+							TraceLog(LOG_INFO, "Deallocated snapshot from History");
+						}
+						h->count = h->cursor; // cut loose the history list "tail"
 					}
-					History_push(h, context.canvas);
-					if (h->cursor < MAX_HISTORY) h->cursor++;
+					History_push(h, *context.canvas);
+					h->cursor++;
 				}
 				draw(&context);
 			}
@@ -527,12 +555,12 @@ int main(void) {
 			BeginShaderMode(fxaa);
 			// Draw canvas
 			DrawTextureRec(
-				context.canvas.texture,
+				context.canvas->texture,
 			    (Rectangle){
 			    	0,
 			    	0,
-			    	(float)context.canvas.texture.width,
-			    	-(float)context.canvas.texture.height
+			    	(float)context.canvas->texture.width,
+			    	-(float)context.canvas->texture.height
 			    }, // Flips the texture so it doesn't look upside down bc of opengl shit
 				(Vector2){0, 0},
 				WHITE
@@ -544,7 +572,7 @@ int main(void) {
 			DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
 
 			// Messages
-			char* version_text = "Inkpad v0.6";
+			char* version_text = "Inkpad v0.7 DEV";
 			Vector2 size = MeasureTextEx(global_font, version_text, 13.0f, 1.0f);
 			DrawTextEx(global_font, version_text, (Vector2) { window_width-size.x-PANEL_PADDING, window_height-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
 			
@@ -555,7 +583,7 @@ int main(void) {
 
 			// Page number
 			char page_number_text[16];
-			sprintf(page_number_text, "%ld/%d", context.page_selection+1, MAX_PAGES);
+			sprintf(page_number_text, "%ld/%d", context.current_page+1, MAX_PAGES);
 			DrawTextEx(global_font, page_number_text, (Vector2) { 20, window_height - PANEL_HEIGHT - 40 }, 25.0f, 1.0f, WHITE);
 
 			// Input
@@ -587,10 +615,10 @@ int main(void) {
 
 				// Undo
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
-					History* h = &context.history[context.page_selection];
+					History* h = &context.history.items[context.current_page];
 					if (h->cursor > 0) {
-						if (h->cursor == h->len) History_push(h, context.canvas); // Save state before undo to be able to redo
-						BeginTextureMode(context.canvas);
+						if (h->cursor == h->count) History_push(h, *context.canvas); // Save state before undo to be able to redo
+						BeginTextureMode(*context.canvas);
 							Texture2D t = LoadTextureFromImage(h->items[--h->cursor]);
 							DrawTexture(t, 0, 0, WHITE);
 						EndTextureMode();
@@ -601,9 +629,9 @@ int main(void) {
 
 				// Redo
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y)) {
-					History* h = &context.history[context.page_selection];
-					if (h->cursor + 1 < h->len) {
-						BeginTextureMode(context.canvas);
+					History* h = &context.history.items[context.current_page];
+					if (h->cursor + 1 < h->count) {
+						BeginTextureMode(*context.canvas);
 							Texture2D t = LoadTextureFromImage(h->items[++h->cursor]);
 							DrawTexture(t, 0, 0, WHITE);
 						EndTextureMode();
@@ -643,7 +671,7 @@ int main(void) {
 				if (IsKeyPressed(KEY_L)) context.s.mode = MODE_LINE;
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
-						BeginTextureMode(context.canvas);
+						BeginTextureMode(*context.canvas);
 						ClearBackground(DEFAULT_BGCOLOR);				
 						EndTextureMode();
 						set_status_caption(status_text, &status_timer, "Cleared screen");
@@ -657,14 +685,14 @@ int main(void) {
 
 				// Page shortcuts
 				if (IsKeyPressed(KEY_PERIOD))
-				{ context.page_selection = context.page_selection < MAX_PAGES-1 ? context.page_selection + 1 : context.page_selection;
-			      context.canvas = pages[context.page_selection];
-			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.page_selection + 1));
+				{ context.current_page = context.current_page < MAX_PAGES-1 ? context.current_page + 1 : context.current_page;
+			      context.canvas = &pages[context.current_page];
+			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.current_page + 1));
 				}
 				if (IsKeyPressed(KEY_COMMA))
-				{ context.page_selection = context.page_selection > 0 ? context.page_selection - 1 : context.page_selection;
-			      context.canvas = pages[context.page_selection];
-			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.page_selection + 1));
+				{ context.current_page = context.current_page > 0 ? context.current_page - 1 : context.current_page;
+			      context.canvas = &pages[context.current_page];
+			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.current_page + 1));
   				}
 			}
 
@@ -694,11 +722,11 @@ int main(void) {
 			starting_pos += PANEL_PADDING;
 			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 			for (size_t i = 0; i < MAX_PAGES; i++) {
-				draw_page_option(&bb, (size_t) context.page_selection == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
+				draw_page_option(&bb, (size_t) context.current_page == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					context.page_selection = i;
-					context.canvas = pages[context.page_selection];
-					set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.page_selection + 1));
+					context.current_page = i;
+					context.canvas = &pages[context.current_page];
+					set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.current_page + 1));
 				}
 			}
 			starting_pos += bb.width*MAX_PAGES;
@@ -709,8 +737,8 @@ int main(void) {
 			draw_texture_button(&bb, save_icon, starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 			if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 				char* home = INKPAD_HOME;
-				const char* filename = TextFormat("%s/inkpad_page%d.png", home, context.page_selection+1);
-				save_canvas_as_image(context.canvas.texture, filename);
+				const char* filename = TextFormat("%s/inkpad_page%d.png", home, context.current_page+1);
+				save_canvas_as_image(context.canvas->texture, filename);
 				set_status_caption(status_text, &status_timer, TextFormat("Saved canvas successfully as \"%s\".", filename));
 			}
 			starting_pos += bb.width;
@@ -729,14 +757,21 @@ int main(void) {
 				HideCursor();
 				draw_stroke_preview(&context);
 			}
-			// debug_text(TextFormat("history cursor = %ld", context.history[context.page_selection].cursor), 50, 50);
-			// debug_text(TextFormat("history len = %ld", context.history[context.page_selection].len), 50, 70);
+			// debug_text(TextFormat("history cursor = %ld", context.history[context.current_page].cursor), 50, 50);
+			// debug_text(TextFormat("history len = %ld", context.history[context.current_page].len), 50, 70);
 		EndDrawing();
 		context.mouse_last_position = context.mouse_current_position;
 	}
 
-	UnloadRenderTexture(context.canvas);
+	UnloadRenderTexture(*context.canvas);
 	CloseWindow();
 	return 0;
 }
+
+
+
+
+
+
+
 
