@@ -5,13 +5,15 @@
 
 #include "raylib.h"
 
-#include "IBMPlexMono-SemiBold.c"
-#include "Save.c"
-#include "FXAA.c"
+// Assets
+#include "res/IBMPlexMono_SemiBold.c"
+#include "res/Save.c"
 
-#define DEFAULT_BGCOLOR (Color){18, 18, 18, 255}
+// Shader
+#include "fxaa.c"
 
 // General constants
+#define DEFAULT_BGCOLOR (Color){18, 18, 18, 255}
 #define PANEL_PADDING      15         // gap between elements inside the panel (pixels)
 #define PANEL_HEIGHT       90         // height of the panel (pixels)
 #define MAX_PAGES          5          // number of pages
@@ -446,9 +448,8 @@ int main(void) {
 	SetExitKey(0);
 
 	// Loading assets and configuration
-	global_font = LoadFont_IBMPlexMono_SemiBold();
-
-	Image i = { .data = SAVE_DATA, .width = SAVE_WIDTH, .height = SAVE_HEIGHT, .format = SAVE_FORMAT, .mipmaps = 1 };;
+	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 40, NULL, 0);;;;;;
+	Image i = LoadImageFromMemory(".png", Save_png, Save_size);
 	Texture2D save_icon = LoadTextureFromImage(i);
 	
 	size_t window_width = GetScreenWidth();
@@ -738,3 +739,4 @@ int main(void) {
 	CloseWindow();
 	return 0;
 }
+

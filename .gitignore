@@ -3,3 +3,5 @@ dist/
 lib/
 nob
 nob.old
+*.zip
+src/res/
