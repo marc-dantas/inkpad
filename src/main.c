@@ -709,9 +709,6 @@ int main(void) {
 			
 			// Color options
 			// BB means Bounding Box, not Bubble Gum! You bastard!
-			// what the hell is this comment man, am I crazy or wat?
-			// this is gonna turn into a madness really quickly
-			// btw what i was even thinking by doing this comment up there lmfao
 			Rectangle bb = {0};
 			int starting_pos = PANEL_PADDING + bb.x + bb.width + 200;
 			DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
