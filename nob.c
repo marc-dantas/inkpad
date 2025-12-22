@@ -235,6 +235,15 @@ int main(int argc, char** argv) {
 		if (!clean()) return 1;
 		return 0;
 	}
+
+	if (strcmp(argv[1], "run") == 0) {
+		Platform plat = platforms[0];
+		nob_log(NOB_INFO, "Building + Running Inkpad for %s", plat.name);
+		if (!(*plat.build)()) return 1;
+		cmd_append(&cmd, temp_sprintf("./%s/%s/inkpad", OUTPUT_DIR, plat.name));
+		if (!cmd_run(&cmd)) return 1;
+		return 0;
+	}
 	
 	if (strcmp(argv[1], "pack") == 0) {
 		if (!mkdir_if_not_exists(ASSETS_OUTPUT_DIR)) return 1;
@@ -250,6 +259,8 @@ int main(int argc, char** argv) {
 		nob_log(NOB_INFO, "Available commands:");
 		printf("    PLATFORM: Build for a platform (see available platforms below)\n");
 		printf("    `release [PLATFORM]`: Release for a platform (or all if not provided)\n");
+		printf("    `pack`: Pack the application's assets\n");
+		printf("    `run`: Build and run for the default platform (development purposes)\n");
 		printf("    `clean`: Clean up build garbage\n");
 		printf("    `help`: Show this help message\n");
 		nob_log(NOB_INFO, "Available platforms:");
