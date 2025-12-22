@@ -611,7 +611,8 @@ int main(void) {
 				}
 
 				// Quit key
-				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_ESCAPE)) break;
+				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Q)) break;
+				if (context.cancel) set_status_caption(status_text, &status_timer, "Action cancelled");
 
 				// Undo
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
