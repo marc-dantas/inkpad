@@ -22,9 +22,21 @@ Provide one of the following command line arguments below to `nob` executable to
 
 If you do not provide any of them, the default is Linux x86_64.
 
+If it is your first time building the same version, you need to pack the necessary assets for the
+software to work. In case you don't, the build will not succeed.
+
+To pack the assets, use the built-in asset packer:
+```console
+./nob pack
+```
+
+---
+
+In a nutshell, this is what you need to do:
+
 ```console
 $ cc -o nob nob.c
-$ ./nob
+$ ./nob pack && ./nob
 ```
 
 After build, run the executable at `bin/` folder.
