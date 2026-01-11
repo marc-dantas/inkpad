@@ -175,10 +175,12 @@ void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, b
 	};
 	DrawRectangle(rec.x, rec.y, rec.width, rec.height, color);
 	DrawRectangleLinesEx(rec, selected ? 4.0f : 1.0f, WHITE);
-	boundingbox->x      = rec.x;
-	boundingbox->y      = rec.y;
-	boundingbox->width  = rec.width;
-	boundingbox->height = rec.height;
+	if (boundingbox) {
+		boundingbox->x      = rec.x;
+		boundingbox->y      = rec.y;
+		boundingbox->width  = rec.width;
+		boundingbox->height = rec.height;
+	}
 }
 
 void draw_page_option(Rectangle* boundingbox, bool selected, int number, unsigned int x, unsigned int y) {
@@ -647,7 +649,7 @@ int main(void) {
 					}
 				}
 				
-				// Change Thickness by Mouse wheel
+				// Change Thickness by Mouse wheel (LEFT ALT)
 				if (IsKeyDown(KEY_LEFT_ALT)) {
 					double wheel = GetMouseWheelMove() * 3;
 					if (wheel < 0) context.s.thick += context.s.thick >= DEFAULT_THICK/2 ? wheel : 0;
@@ -655,6 +657,28 @@ int main(void) {
 					show_stroke_tooltip(context.mouse_current_position, &context.s);
 				}
 
+				// Change color by Mouse wheel (TAB)
+				if (IsKeyDown(KEY_TAB)) {
+					int wheel = (int)GetMouseWheelMove();
+					size_t len = sizeof(color_options)/sizeof(Color);
+					Color color = context.s.color;
+					size_t index = 0;
+					for (size_t i = 0; i < len; i++) {
+						if (color_eq(color, color_options[i])) {
+							index = i;
+						}
+					}
+					Vector2 pos = context.mouse_current_position;
+					size_t pad = context.s.thick/2;
+
+					size_t selected = (index-wheel);
+					draw_color_option(NULL, pos.x + pad, pos.y + pad, false, color);
+					
+					if (selected < 0)
+						context.s.color = color_options[selected >= 0 ? selected : 0];
+					else
+						context.s.color = color_options[selected <= len ? selected : len-1];
+				}
 				// Quick erase
 				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
 				{ saved_mode = context.s.mode;
