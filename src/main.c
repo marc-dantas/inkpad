@@ -15,6 +15,7 @@
 
 // General constants
 #define DEFAULT_BGCOLOR (Color){18, 18, 18, 255}
+#define PANEL_BGCOLOR (Color){18, 18, 18, 130}
 #define PANEL_PADDING      15         // gap between elements inside the panel (pixels)
 #define PANEL_HEIGHT       90         // height of the panel (pixels)
 #define MAX_PAGES          5          // number of pages
@@ -485,7 +486,7 @@ void draw_panel(
 	Color* color_options,
 	int n_color_options
 ) {
-	DrawRectangle(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, BLACK);
+	DrawRectangle(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, PANEL_BGCOLOR);
 	DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
 	// Show stroke information
 	DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
@@ -552,7 +553,6 @@ void draw_panel(
 	if (*status_timer > 0) (*status_timer)--;
 	else memset(status_text, 0, sizeof(status_text));
 }
-
 
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
