@@ -602,7 +602,7 @@ int main(void) {
 	}
 
 	// Interface
-	Color color_options[] = { WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
+	Color color_options[] = { BLACK, WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
 
 	char status_text[128] = {0};
 	int status_timer = 0;
