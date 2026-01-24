@@ -28,6 +28,11 @@
 #    define INKPAD_HOME getenv("HOME")
 #endif
 
+// Version
+#define VERSION "0.7-dev"
+#define VERSION_NAME "Inkpad "VERSION
+
+// Misc
 #define da_reserve(da, expected_capacity)                                              \
     do {                                                                               \
         if ((expected_capacity) > (da)->capacity) {                                    \
@@ -94,13 +99,13 @@ void History_push(History* target, RenderTexture2D snapshot) {
 }
 
 typedef struct {
-	bool cancel;             // Flag to cancel the current stroke action being done
-	size_t current_page;     // Index of the current page selected
-	RenderTexture2D* canvas; // Current canvas object
-	Stroke s;                // Current stroke state
-	Vector2 last_point;      // Used to save the previous point clicked while holding LMB
-	TextState text;          // Current text state
-	HistoryList history;     // List of all histories across the pages
+	bool cancel;                       // Flag to cancel the current stroke action being done
+	size_t current_page;               // Index of the current page selected
+	RenderTexture2D* canvas;           // Current canvas object
+	Stroke s;                          // Current stroke state
+	Vector2 last_point;                // Used to save the previous point clicked while holding LMB
+	TextState text;                    // Current text state
+	HistoryList history;               // List of all histories across the pages
 	Vector2 mouse_last_position, mouse_current_position; 
 } Context;
 
@@ -112,8 +117,10 @@ bool color_eq(Color a, Color b) {
 			a.a==b.a);
 }
 
-// Global context and font
+// Global context and assets
 static Font global_font;
+static Texture2D save_icon;
+
 static Context context = {0};
 
 void draw_message(unsigned int x, unsigned int y, char* text) {
@@ -468,23 +475,99 @@ void debug_text(char* txt, int x, int y) {
 	DrawTextEx(global_font, txt, (Vector2) { x, y }, 20.0f, 1.0f, GREEN);
 }
 
+void draw_panel(
+	Context* context,
+	int window_width,
+	int window_height,
+	int* status_timer,
+	char* status_text,
+	RenderTexture2D pages[MAX_PAGES],
+	Color* color_options,
+	int n_color_options
+) {
+	DrawRectangle(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, BLACK);
+	DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
+	// Show stroke information
+	DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+	show_stroke(PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, &context->s);
+
+	// Messages
+	Vector2 size = MeasureTextEx(global_font, VERSION_NAME, 13.0f, 1.0f);
+	DrawTextEx(
+		global_font,
+		VERSION_NAME,
+		(Vector2) {
+			window_width-size.x-PANEL_PADDING,
+			window_height-100+PANEL_PADDING
+		},
+		13.0f,
+		1.0f,
+		GRAY
+	);
+	
+	// Color options
+	// BB means Bounding Box, not Bubble Gum! You bastard!
+	Rectangle bb = {0};
+	int starting_pos = PANEL_PADDING + bb.x + bb.width + 200;
+	DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+	size_t len = n_color_options;
+	for (size_t i = 0; i < len; i++) {
+		bool selected = color_eq(context->s.color, color_options[i]);
+		draw_color_option(&bb, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20, selected, color_options[i]);
+		if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+			context->s.color = color_options[i];
+		}
+	}
+	starting_pos += bb.width*len;
+
+	// Draw page buttons
+	starting_pos += PANEL_PADDING;
+	DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+	for (size_t i = 0; i < MAX_PAGES; i++) {
+		draw_page_option(&bb, (size_t) context->current_page == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
+		if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+			context->current_page = i;
+			context->canvas = &pages[context->current_page];
+			set_status_caption(status_text, status_timer, TextFormat("Changed to page %d", context->current_page + 1));
+		}
+	}
+	starting_pos += bb.width*MAX_PAGES;
+
+	// Save button
+	starting_pos += PANEL_PADDING;
+	DrawTextEx(global_font, "Save", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+	draw_texture_button(&bb, save_icon, starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
+	if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+		char* home = INKPAD_HOME;
+		const char* filename = TextFormat("%s/inkpad_page%d.png", home, context->current_page+1);
+		save_canvas_as_image(context->canvas->texture, filename);
+		set_status_caption(status_text, status_timer, TextFormat("Saved canvas successfully as \"%s\".", filename));
+	}
+	starting_pos += bb.width;
+
+	// Status text
+	DrawTextEx(global_font, "Status", (Vector2) { starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
+	DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 5, window_height - PANEL_HEIGHT + PANEL_PADDING+25 }, window_width/100, 1.0f, GREEN);
+	DrawRectangleLines(starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, window_width - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
+	if (*status_timer > 0) (*status_timer)--;
+	else memset(status_text, 0, sizeof(status_text));
+}
+
 
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
 	
 	// Initialization
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
-	InitWindow(GetScreenWidth(), GetScreenHeight(), "Inkpad");
+	InitWindow(0, 0, "Inkpad");
+	size_t window_width = GetScreenWidth();
+	size_t window_height = GetScreenHeight();
 	SetTargetFPS(120);
 	SetExitKey(0);
 
 	// Loading assets and configuration
 	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 40, NULL, 0);;;;;;
-	Image i = LoadImageFromMemory(".png", Save_png, Save_size);
-	Texture2D save_icon = LoadTextureFromImage(i);
-	
-	size_t window_width = GetScreenWidth();
-	size_t window_height = GetScreenHeight();
+	save_icon = LoadTextureFromImage(LoadImageFromMemory(".png", Save_png, Save_size));
 
 	Shader fxaa = LoadShaderFromMemory(0, fxaa_shader);
 	int resLoc = GetShaderLocation(fxaa, "resolution");
@@ -523,9 +606,10 @@ int main(void) {
 
 	char status_text[128] = {0};
 	int status_timer = 0;
+	bool show_panel = true;
 
 	// Welcome message
-	set_status_caption(status_text, &status_timer, "Welcome to Inkpad. Press F11 to toggle fullscreen.");
+	set_status_caption(status_text, &status_timer, "Welcome to Inkpad. Press F11 to hide the Panel.");
 	
 	// Window
 	while (!WindowShouldClose()) {
@@ -535,7 +619,7 @@ int main(void) {
 			(Rectangle) {
 				0, 0,
 				window_width,
-				window_height - PANEL_HEIGHT - context.s.thick/2
+				window_height - (show_panel ? PANEL_HEIGHT : 0) - context.s.thick/2
 			},
 			context.mouse_current_position
 		);
@@ -560,6 +644,7 @@ int main(void) {
 		EndTextureMode();
 		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
+			
 			BeginShaderMode(fxaa);
 			// Draw canvas
 			DrawTextureRec(
@@ -574,15 +659,17 @@ int main(void) {
 				WHITE
 			);
 			EndShaderMode();
-
-			// Draw panel
-			DrawRectangle(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, BLACK);
-			DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
-
-			// Messages
-			char* version_text = "Inkpad v0.7 DEV";
-			Vector2 size = MeasureTextEx(global_font, version_text, 13.0f, 1.0f);
-			DrawTextEx(global_font, version_text, (Vector2) { window_width-size.x-PANEL_PADDING, window_height-100+PANEL_PADDING }, 13.0f, 1.0f, GRAY);
+			
+			if (show_panel) draw_panel(
+				&context,
+				window_width,
+				window_height,
+				&status_timer,
+				status_text,
+				pages,
+				color_options,
+				sizeof(color_options)/sizeof(Color)
+			);
 			
 			// Show Coordinates
 			char pos_text[32];
@@ -592,7 +679,18 @@ int main(void) {
 			// Page number
 			char page_number_text[16];
 			sprintf(page_number_text, "%ld/%d", context.current_page+1, MAX_PAGES);
-			DrawTextEx(global_font, page_number_text, (Vector2) { 20, window_height - PANEL_HEIGHT - 40 }, 25.0f, 1.0f, WHITE);
+			int height = MeasureTextEx(global_font, page_number_text, 25.0f, 1.0f).y;
+			DrawTextEx(
+				global_font,
+				page_number_text,
+				(Vector2) {
+					PANEL_PADDING,
+					window_height - (show_panel ? PANEL_HEIGHT : 0) - height - PANEL_PADDING
+				},
+				25.0f,
+				1.0f,
+				WHITE
+			);
 
 			// Input
 			if (!context.text.active) {
@@ -606,13 +704,9 @@ int main(void) {
 
 				// Fullscreen and window resizing
 				if (IsKeyPressed(KEY_F11)) {
-					if (!IsWindowFullscreen()) {
-						window_width = GetMonitorWidth(GetCurrentMonitor());
-						window_height = GetMonitorHeight(GetCurrentMonitor());
-					}
-					SetWindowSize(window_width, window_height);
-					ToggleFullscreen();
+					show_panel = !show_panel;
 				}
+				
 				if (IsWindowResized()) {
 					window_width = GetScreenWidth();
 					window_height = GetScreenHeight();
@@ -726,57 +820,6 @@ int main(void) {
 			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.current_page + 1));
   				}
 			}
-
-			// Show stroke information
-			DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			show_stroke(PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, &context.s);
-			
-			// Color options
-			// BB means Bounding Box, not Bubble Gum! You bastard!
-			Rectangle bb = {0};
-			int starting_pos = PANEL_PADDING + bb.x + bb.width + 200;
-			DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			size_t len = sizeof(color_options)/sizeof(Color);
-			for (size_t i = 0; i < len; i++) {
-				bool selected = color_eq(context.s.color, color_options[i]);
-				draw_color_option(&bb, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20, selected, color_options[i]);
-				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					context.s.color = color_options[i];
-				}
-			}
-			starting_pos += bb.width*len;
-
-			// Draw page buttons
-			starting_pos += PANEL_PADDING;
-			DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			for (size_t i = 0; i < MAX_PAGES; i++) {
-				draw_page_option(&bb, (size_t) context.current_page == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
-				if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					context.current_page = i;
-					context.canvas = &pages[context.current_page];
-					set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.current_page + 1));
-				}
-			}
-			starting_pos += bb.width*MAX_PAGES;
-
-			// Save button
-			starting_pos += PANEL_PADDING;
-			DrawTextEx(global_font, "Save", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			draw_texture_button(&bb, save_icon, starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
-			if (check_boundingbox(bb, context.mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-				char* home = INKPAD_HOME;
-				const char* filename = TextFormat("%s/inkpad_page%d.png", home, context.current_page+1);
-				save_canvas_as_image(context.canvas->texture, filename);
-				set_status_caption(status_text, &status_timer, TextFormat("Saved canvas successfully as \"%s\".", filename));
-			}
-			starting_pos += bb.width;
-
-			// Status text
-			DrawTextEx(global_font, "Status", (Vector2) { starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-			DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 5, window_height - PANEL_HEIGHT + PANEL_PADDING+25 }, window_width/100, 1.0f, GREEN);
-			DrawRectangleLines(starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, window_width - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
-			if (status_timer > 0) status_timer--;
-			else memset(status_text, 0, sizeof(status_text));
 			
 			// Draw stroke preview
 			if (!is_on_canvas)
