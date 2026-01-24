@@ -597,7 +597,7 @@ int main(void) {
 	for (int i = 0; (size_t)i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
 		da_append(&context.history, (History){0});
 		BeginTextureMode(pages[i]);
-		ClearBackground(DEFAULT_BGCOLOR);
+		ClearBackground(BLANK);
 		EndTextureMode();
 	}
 
