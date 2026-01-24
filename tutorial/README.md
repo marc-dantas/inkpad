@@ -72,10 +72,10 @@ Stroke has 2 more properties:
 To set the thickness of the stroke, press the number keys from `0` to `5` to set the thickness.
 
 ### Color
-![Thickness](./res/color.png)
+![Colors](./res/color.png)
 > _Color options_
 
-To select a color for the stroke, click the desired color option in the status panel.
+To select a color for the stroke, click the desired color option in the Panel.
 
 ## Pages
 ![Pages](./res/pages.png)
@@ -83,7 +83,7 @@ To select a color for the stroke, click the desired color option in the status p
 
 Inkpad uses a system of **pages**. Basically, you can switch between pages and draw
 different things on them. They can be selected using the **page selector** in the
-status panel.
+Panel.
 
 ### Page selection
 To change to a specific page, click on the selector containing the number of the page.
@@ -91,12 +91,14 @@ Inkpad has 5 pages for you to use freely.
 
 To quickly change between pages, use the `.` and `,` keys to go forward and backward, respectively. 
 
-## Status panel
-Status panel is the area below the drawing canvas, it contains all information
+## Panel
+Panel is the area below the drawing canvas, it contains all information
 about the current stroke, the color options and the page selector.
 
+You may hide the panel by pressing `F11`
+
 ### Status messages
-Status messages are shown inside a rectangular white outline after the save button in the Status panel.
+Status messages are shown inside a rectangular white outline after the save button in the Panel.
 Its purpose it to log the main actions you take using Inkpad.
 
 ## Utility
@@ -105,7 +107,7 @@ Its purpose it to log the main actions you take using Inkpad.
 
 ![Save button](./res/save.png)
 
-Use the save button to export your current page as a  `png` image. You just need to click the button in the status panel.
+Use the save button to export your current page as a  `png` image. You just need to click the button in the Panel.
 After saving successfully, it is possible to notice a log in the **Status message** section.
 
 > NOTE: It saves the image in the user home directory.
@@ -120,6 +122,11 @@ To go back to the previous mode, release the `RMB`.
 ### _Quick line_
 To quickly draw a line, press and hold `LSHIFT` to quickly change to **line mode** and use `LMB` to start
 drawing lines in your canvas.
+
+### _Quick color_
+To quickly swap the color of your stroke without having to click
+the desired color, press and hold `TAB` while scrolling the mouse
+wheel to select a color from the color pallete.
 
 ### Thickness by mouse wheel
 You can change the thickness of your stroke by holding left `ALT` and spinning the mouse wheel to make it smaller or bigger.
@@ -143,6 +150,8 @@ Simple table containing all keybindings for the software
 | `SPACE`       | Set stroke mode to Text              |
 | `X`           | Set stroke mode to Erase             |
 | `Ctrl`+`X`    | Clear entire canvas of current page  |
+| `F11`         | Hide the Panel                       |
+
 
 ---
 
