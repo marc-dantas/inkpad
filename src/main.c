@@ -30,7 +30,7 @@
 #endif
 
 // Version
-#define VERSION "0.7-dev"
+#define VERSION "0.7"
 #define VERSION_NAME "Inkpad "VERSION
 
 // Misc
