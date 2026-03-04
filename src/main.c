@@ -30,7 +30,7 @@
 #endif
 
 // Version
-#define VERSION "0.7.1 DEV"
+#define VERSION "0.8 DEV"
 #define VERSION_NAME "Inkpad "VERSION
 
 // Misc
@@ -54,6 +54,11 @@
         da_reserve((da), (da)->count + 1);   \
         (da)->items[(da)->count++] = (item); \
     } while (0)
+
+#define da(T) \
+	Image *items; \
+	size_t count; \
+	size_t capacity;
 
 // Stroke constants
 #define DEFAULT_THICK 8.0f
@@ -80,10 +85,7 @@ typedef struct {
 } TextState;
 
 typedef struct {
-	Image *items;
-	size_t count;
-	size_t capacity;
-	
+	da(Image);
 	size_t cursor;
 } History;
 
@@ -404,17 +406,43 @@ void draw_preview(Context* context) {
 		if (text->active) {
 			if (IsKeyPressed(CANCEL_KEY)) context->cancel = true;
 			if (context->cancel) break;
-			if (!IsKeyPressed(KEY_ENTER)) {
-				int text_size = s->thick*3;
-				int text_wid = MeasureTextEx(global_font, text->content, text_size, 1.0f).x;
-				int pad = 15;
-				int cursor_wid = text_size/2;
-				DrawRectangleLines(
-					text->pos.x               - pad,
-					text->pos.y - text_size/2 - pad,
-					text_wid    + cursor_wid  + pad*2,
-					text_size                 + pad*2,
-					s->color
+			if (IsKeyPressed(KEY_ENTER)) break;
+			int text_wid;
+			int text_size = s->thick*3;
+			int pad = 15;
+			int cursor_wid = text_size/2;
+			if (*(text->content) == 0) {
+				const char* msg = "Start typing...";
+				text_wid = MeasureTextEx(global_font, msg, text_size, 1.0f).x;
+				DrawTextEx(
+					global_font,
+					msg,
+					(Vector2) { text->pos.x, text->pos.y - text_size/2 },
+					text_size,
+					2.0f,
+					GRAY
+				);
+				DrawLineEx(
+					(Vector2) {
+						text->pos.x,
+						text->pos.y + text_size/2 - text_size*0.1
+					}, // x
+					(Vector2) {
+						text->pos.x + cursor_wid,
+						text->pos.y + text_size/2 - text_size*0.1,
+					}, // y
+					3.0f,
+					c
+				);
+			} else {
+				text_wid = MeasureTextEx(global_font, text->content, text_size, 1.0f).x;
+				DrawTextEx(
+					global_font,
+					text->content,
+					(Vector2) { text->pos.x, text->pos.y - text_size/2 },
+					text_size,
+					1.0f,
+					WHITE
 				);
 				DrawLineEx(
 					(Vector2) {
@@ -428,15 +456,14 @@ void draw_preview(Context* context) {
 					3.0f,
 					c
 				);
-				DrawTextEx(
-					global_font,
-					text->content,
-					(Vector2) { text->pos.x, text->pos.y - text_size/2 },
-					text_size,
-					1.0f,
-					WHITE
-				);
 			}
+			DrawRectangleLines(
+				text->pos.x               - pad,
+				text->pos.y - text_size/2 - pad,
+				text_wid    + cursor_wid  + pad*2,
+				text_size                 + pad*2,
+				s->color
+			);
 		}
 		break;
 	case MODE_ERASE:
