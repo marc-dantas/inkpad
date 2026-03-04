@@ -21,6 +21,8 @@
 #define MAX_PAGES          5          // number of pages
 #define DEFAULT_SLEEP_TIME 240        // time (in frames) to show a caption in status
 #define CANCEL_KEY         KEY_ESCAPE // key to press to cancel action
+#define STEADY_LEASH_SIZE  20         // how long (delayed) is the Steady stroke mode in pixels.
+                                      // In other words, how much you have to drag the mouse to start drawing
 
 // System constants
 #ifdef _WIN32
@@ -65,6 +67,7 @@
 
 typedef enum {
 	MODE_FREE = 0,
+	MODE_STEADY,
 	MODE_LINE,
 	MODE_RECT,
 	MODE_TEXT,
@@ -146,8 +149,12 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	switch (s->mode) {
 	case MODE_FREE:
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
-		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 		text = "Free";
+		break;
+	case MODE_STEADY:
+		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
+		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
+		text = "Steady";
 		break;
 	case MODE_LINE:
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
@@ -255,6 +262,26 @@ void draw(Context* context) {
 			draw_free(mouse_last_position, mouse_current_position, s);
 		}
 		break;
+	case MODE_STEADY:
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+			*last_point = mouse_current_position;
+		}
+		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+			Vector2 dir = {
+				context->mouse_current_position.x - context->last_point.x,
+				context->mouse_current_position.y - context->last_point.y,
+			};
+			float leash = (float)STEADY_LEASH_SIZE;
+			float dist = sqrtf(dir.x*dir.x + dir.y*dir.y);
+			if (dist > leash) {
+			    float t = (dist - leash) / (float)dist;
+			    Vector2 prev = context->last_point;
+			    context->last_point.x += dir.x * t;
+			    context->last_point.y += dir.y * t;
+			    draw_free(prev, context->last_point, s);
+			}
+		}
+		break;
 	case MODE_LINE:
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
 			*last_point = mouse_current_position;
@@ -358,6 +385,14 @@ void draw_preview(Context* context) {
 	switch (s->mode) {
 	case MODE_FREE:
 		DrawCircleLinesV(pos, s->thick/2, c);
+		break;
+	case MODE_STEADY:
+		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+			DrawLineV(context->last_point, context->mouse_current_position, c);
+			DrawCircleLinesV(context->last_point, s->thick/2 + 5, WHITE);
+		} else {
+			DrawCircleLinesV(pos, s->thick/2, c);
+		}
 		break;
 	case MODE_LINE:
 		DrawCircle(pos.x, pos.y, 2.0f, c);
@@ -800,6 +835,10 @@ int main(void) {
 					else
 						context.s.color = color_options[selected <= len ? selected : len-1];
 				}
+
+				// Steady smoothness
+				
+				
 				// Quick erase
 				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
 				{ saved_mode = context.s.mode;
@@ -820,6 +859,7 @@ int main(void) {
 
 				// Modes
 				if (IsKeyPressed(KEY_A)) context.s.mode = MODE_FREE;
+				if (IsKeyPressed(KEY_S)) context.s.mode = MODE_STEADY;
 				if (IsKeyPressed(KEY_L)) context.s.mode = MODE_LINE;
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
