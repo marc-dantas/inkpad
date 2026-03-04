@@ -14,8 +14,8 @@
 #include "fxaa.c"
 
 // General constants
-#define DEFAULT_BGCOLOR (Color){18, 18, 18, 255}
-#define PANEL_BGCOLOR (Color){18, 18, 18, 130}
+#define DEFAULT_BGCOLOR    (Color){18, 18, 18, 255}
+#define PANEL_BGCOLOR      (Color){18, 18, 18, 130}
 #define PANEL_PADDING      15         // gap between elements inside the panel (pixels)
 #define PANEL_HEIGHT       90         // height of the panel (pixels)
 #define MAX_PAGES          5          // number of pages
@@ -30,7 +30,7 @@
 #endif
 
 // Version
-#define VERSION "0.7"
+#define VERSION "0.7.1 DEV"
 #define VERSION_NAME "Inkpad "VERSION
 
 // Misc
@@ -554,6 +554,14 @@ void draw_panel(
 	else memset(status_text, 0, sizeof(status_text));
 }
 
+void clear_and_draw_texture(RenderTexture2D canvas, Texture2D draw) {
+	BeginTextureMode(canvas);
+	ClearBackground(DEFAULT_BGCOLOR);
+	DrawTexture(draw, 0, 0, WHITE);
+	EndTextureMode();
+	UnloadTexture(draw);
+}
+
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
 	
@@ -566,7 +574,7 @@ int main(void) {
 	SetExitKey(0);
 
 	// Loading assets and configuration
-	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 40, NULL, 0);;;;;;
+	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 100, NULL, 0);;;;;;
 	save_icon = LoadTextureFromImage(LoadImageFromMemory(".png", Save_png, Save_size));
 
 	Shader fxaa = LoadShaderFromMemory(0, fxaa_shader);
@@ -597,7 +605,7 @@ int main(void) {
 	for (int i = 0; (size_t)i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
 		da_append(&context.history, (History){0});
 		BeginTextureMode(pages[i]);
-		ClearBackground(BLANK);
+		ClearBackground(DEFAULT_BGCOLOR);
 		EndTextureMode();
 	}
 
@@ -721,11 +729,7 @@ int main(void) {
 					History* h = &context.history.items[context.current_page];
 					if (h->cursor > 0) {
 						if (h->cursor == h->count) History_push(h, *context.canvas); // Save state before undo to be able to redo
-						BeginTextureMode(*context.canvas);
-							Texture2D t = LoadTextureFromImage(h->items[--h->cursor]);
-							DrawTexture(t, 0, 0, WHITE);
-						EndTextureMode();
-						UnloadTexture(t); // Avoid memory leak
+						clear_and_draw_texture(*context.canvas, LoadTextureFromImage(h->items[--h->cursor]));
 						set_status_caption(status_text, &status_timer, "Undid action");
 					}
 				}
@@ -734,11 +738,7 @@ int main(void) {
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y)) {
 					History* h = &context.history.items[context.current_page];
 					if (h->cursor + 1 < h->count) {
-						BeginTextureMode(*context.canvas);
-							Texture2D t = LoadTextureFromImage(h->items[++h->cursor]);
-							DrawTexture(t, 0, 0, WHITE);
-						EndTextureMode();
-						UnloadTexture(t); // Avoid memory leak
+						clear_and_draw_texture(*context.canvas, LoadTextureFromImage(h->items[++h->cursor]));
 						set_status_caption(status_text, &status_timer, "Redid action");
 					}
 				}
@@ -828,8 +828,6 @@ int main(void) {
 				HideCursor();
 				draw_preview(&context);
 			}
-			// debug_text(TextFormat("history cursor = %ld", context.history[context.current_page].cursor), 50, 50);
-			// debug_text(TextFormat("history len = %ld", context.history[context.current_page].len), 50, 70);
 		EndDrawing();
 		context.mouse_last_position = context.mouse_current_position;
 	}
