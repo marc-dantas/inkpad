@@ -10,15 +10,15 @@ You may find this document useful.
 ## Stroke modes
 Inkpad works by changing **stroke modes**.
 The modes that can be selected are the following:
-- Free: Freehand draw
+- Draw: Freehand draw
 - Line: Draw a straight line
 - Rect: Draw a rectangle
 - Circle: Draw a circle
 - Text: Draw arbitrary text on the canvas
 - Erase: Erase drawings on the canvas
 
-To enable the modes, use the following keys:
-- Free: `A`
+To switch to a specific mode, use the following keys:
+- Draw: `A`
 - Line: `L`
 - Rect: `R`
 - Circle: `C`
@@ -31,11 +31,17 @@ To enable the modes, use the following keys:
 ### Usage of modes
 
 > `LMB`: Left mouse button
+> `CTRL`: Left control
 
-**Free mode**
-Free mode works like a normal pen.
+**Draw mode**
+Draw mode works like a normal pen.
 Press `LMB` and drag the mouse with `LMB` down
-and you will be able to draw freely. 
+and you will be able to draw freely.
+
+Draw mode offers a stabilization feature by lagging your mouse movement a little to
+suppress noise and shakiness of the stroke.
+
+Press and hold `S` and spin the mouse wheel to adjust the lag radius.
 
 **Line mode**
 Press and hold `LMB` to define the start of a
@@ -59,8 +65,6 @@ Press `LMB` and drag the mouse with `LMB` down
 and you will be able to erase the drawing on the canvas. 
 
 ## Other stroke properties
-
-### Overview
 Stroke has 2 more properties:
 - Thickness: Stroke thickness
 - Color: Stroke color
@@ -107,7 +111,7 @@ Its purpose it to log the main actions you take using Inkpad.
 
 ![Save button](./res/save.png)
 
-Use the save button to export your current page as a  `png` image. You just need to click the button in the Panel.
+Use the save button to export your current page as a `png` image. You just need to click the button in the Panel.
 After saving successfully, it is possible to notice a log in the **Status message** section.
 
 > NOTE: It saves the image in the user home directory.
@@ -139,17 +143,18 @@ Simple table containing all keybindings for the software
 
 | Keybinding    | Description                          |
 |:-------------:|:-------------------------------------|
-| `Ctrl`+`Q`    | Exit Inkpad                          |
+| `CTRL`+`Q`    | Exit Inkpad                          |
 | `ESC`         | Cancel action                        |
 | `.`           | Move to page right                   |
+| `,`           | Move to page left                    |
 | `0`-`5`       | Set stroke thickness                 |
-| `A`           | Set stroke mode to Free              |
+| `A`           | Set stroke mode to Draw              |
 | `L`           | Set stroke mode to Line              |
 | `R`           | Set stroke mode to Rect              |
 | `C`           | Set stroke mode to Circle            |
 | `SPACE`       | Set stroke mode to Text              |
 | `X`           | Set stroke mode to Erase             |
-| `Ctrl`+`X`    | Clear entire canvas of current page  |
+| `CTRL`+`X`    | Clear entire canvas of current page  |
 | `F11`         | Hide the Panel                       |
 
 

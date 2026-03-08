@@ -21,8 +21,10 @@
 #define MAX_PAGES          5          // number of pages
 #define DEFAULT_SLEEP_TIME 240        // time (in frames) to show a caption in status
 #define CANCEL_KEY         KEY_ESCAPE // key to press to cancel action
-#define STEADY_LEASH_SIZE  20         // how long (delayed) is the Steady stroke mode in pixels.
-                                      // In other words, how much you have to drag the mouse to start drawing
+
+#define DEFAULT_SMOOTH_LEASH_SIZE 4  // how long (delayed) is the pen in draw stroke mode (in pixels).
+                                     // In other words, how much you have to drag the mouse to start drawing
+#define MAX_SMOOTH_LEASH_SIZE    30
 
 // System constants
 #ifdef _WIN32
@@ -66,8 +68,7 @@
 #define DEFAULT_THICK 8.0f
 
 typedef enum {
-	MODE_FREE = 0,
-	MODE_STEADY,
+	MODE_DRAW = 0,
 	MODE_LINE,
 	MODE_RECT,
 	MODE_TEXT,
@@ -79,6 +80,7 @@ typedef struct {
 	Mode mode;
 	float thick;
 	Color color;
+	int smoothness; // value in pixels of the radius of smooth leash
 } Stroke;
 
 typedef struct {
@@ -133,11 +135,11 @@ void draw_message(unsigned int x, unsigned int y, char* text) {
 	DrawText(text, x, y, 25, WHITE);
 }
 
-void show_stroke_tooltip(Vector2 position, Stroke* s) {
+void show_stroke_tooltip(Vector2 position, Stroke* s, const char* text) {
 	int x = position.x;
 	int y = position.y;
 	Vector2 texpos = (Vector2) { x+s->thick/2, y+s->thick/2 };
-	DrawTextEx(global_font, TextFormat("%.2f", s->thick), texpos, 17.0f, 1.0f, GRAY);
+	DrawTextEx(global_font, text, texpos, 17.0f, 1.0f, GRAY);
 }
 
 void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
@@ -147,14 +149,9 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	Vector2 texpos = (Vector2) { x + w + 5, y+10 };
 	char* text = "Unknown";
 	switch (s->mode) {
-	case MODE_FREE:
+	case MODE_DRAW:
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		text = "Free";
-		break;
-	case MODE_STEADY:
-		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
-		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
-		text = "Steady";
 		break;
 	case MODE_LINE:
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
@@ -257,29 +254,31 @@ void draw(Context* context) {
 	Vector2 mouse_last_position = context->mouse_last_position;
 	
 	switch (s->mode) {
-	case MODE_FREE:
+	case MODE_DRAW:
+		if (s->smoothness > 0) {
+			if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+				*last_point = mouse_current_position;
+			}
+			if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+				Vector2 dir = {
+					context->mouse_current_position.x - context->last_point.x,
+					context->mouse_current_position.y - context->last_point.y,
+				};
+				float leash = (float)s->smoothness;
+				float dist = sqrtf(dir.x*dir.x + dir.y*dir.y);
+				if (dist > leash) {
+				    float t = (dist - leash) / (float)dist;
+				    Vector2 prev = context->last_point;
+				    context->last_point.x += dir.x * t;
+				    context->last_point.y += dir.y * t;
+				    draw_free(prev, context->last_point, s);
+				}
+			}
+			break;
+		}
+		// Fall to the non-smooth draw
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_free(mouse_last_position, mouse_current_position, s);
-		}
-		break;
-	case MODE_STEADY:
-		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			*last_point = mouse_current_position;
-		}
-		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			Vector2 dir = {
-				context->mouse_current_position.x - context->last_point.x,
-				context->mouse_current_position.y - context->last_point.y,
-			};
-			float leash = (float)STEADY_LEASH_SIZE;
-			float dist = sqrtf(dir.x*dir.x + dir.y*dir.y);
-			if (dist > leash) {
-			    float t = (dist - leash) / (float)dist;
-			    Vector2 prev = context->last_point;
-			    context->last_point.x += dir.x * t;
-			    context->last_point.y += dir.y * t;
-			    draw_free(prev, context->last_point, s);
-			}
 		}
 		break;
 	case MODE_LINE:
@@ -383,16 +382,17 @@ void draw_preview(Context* context) {
 	
 	Color c = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? s->color : WHITE;
 	switch (s->mode) {
-	case MODE_FREE:
-		DrawCircleLinesV(pos, s->thick/2, c);
-		break;
-	case MODE_STEADY:
-		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			DrawLineV(context->last_point, context->mouse_current_position, c);
-			DrawCircleLinesV(context->last_point, s->thick/2 + 5, WHITE);
-		} else {
-			DrawCircleLinesV(pos, s->thick/2, c);
+	case MODE_DRAW:
+		if (s->smoothness > 0) {
+			if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+				DrawLineV(context->last_point, context->mouse_current_position, c);
+				DrawCircleLinesV(context->last_point, s->thick/2 + 5, WHITE);
+			} else {
+				DrawCircleLinesV(pos, s->thick/2, c);
+			}
+			break;
 		}
+		DrawCircleLinesV(pos, s->thick/2, c);
 		break;
 	case MODE_LINE:
 		DrawCircle(pos.x, pos.y, 2.0f, c);
@@ -403,7 +403,8 @@ void draw_preview(Context* context) {
 			draw_line(*last_point, pos, &(Stroke){
 				MODE_LINE,
 				1.0f,
-				WHITE
+				WHITE,
+				0
 			});
 		}
 		break;
@@ -432,7 +433,8 @@ void draw_preview(Context* context) {
 			draw_rect(rect, &(Stroke) {
 				MODE_RECT,
 				1.0f,
-				WHITE
+				WHITE,
+				0
 			});
 		}
 		break;
@@ -646,9 +648,10 @@ int main(void) {
 
 	// Context and canvas
 	context.s = (Stroke){
-		MODE_FREE,
-		DEFAULT_THICK,
-		GREEN,
+		.mode = MODE_DRAW,
+		.thick = DEFAULT_THICK,
+		.color = GREEN,
+		.smoothness = DEFAULT_SMOOTH_LEASH_SIZE,
 	};
 	context.text = (TextState){0};
 	
@@ -810,7 +813,7 @@ int main(void) {
 					double wheel = GetMouseWheelMove() * 3;
 					if (wheel < 0) context.s.thick += context.s.thick >= DEFAULT_THICK/2 ? wheel : 0;
 					else if (wheel > 0) context.s.thick += context.s.thick <= DEFAULT_THICK + 20.0f ? wheel : 0;
-					show_stroke_tooltip(context.mouse_current_position, &context.s);
+					show_stroke_tooltip(context.mouse_current_position, &context.s, TextFormat("Size: %.2f", context.s.thick));
 				}
 
 				// Change color by Mouse wheel (TAB)
@@ -836,8 +839,13 @@ int main(void) {
 						context.s.color = color_options[selected <= len ? selected : len-1];
 				}
 
-				// Steady smoothness
-				
+				// Stroke smoothness
+				if (IsKeyDown(KEY_S) && context.s.mode == MODE_DRAW) {
+					double wheel = GetMouseWheelMove() * 3;
+					int inc = wheel > 0 ? 1 : (wheel == 0 ? 0 : -1);
+					context.s.smoothness += context.s.smoothness > 0 && context.s.smoothness < MAX_SMOOTH_LEASH_SIZE ? inc : 0;
+					show_stroke_tooltip(context.mouse_current_position, &context.s, TextFormat("Smoothness: %.2f", (float)context.s.smoothness));
+				}
 				
 				// Quick erase
 				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
@@ -858,8 +866,7 @@ int main(void) {
 				if (IsKeyReleased(KEY_LEFT_SHIFT)) context.s.mode = saved_mode;
 
 				// Modes
-				if (IsKeyPressed(KEY_A)) context.s.mode = MODE_FREE;
-				if (IsKeyPressed(KEY_S)) context.s.mode = MODE_STEADY;
+				if (IsKeyPressed(KEY_A)) context.s.mode = MODE_DRAW;
 				if (IsKeyPressed(KEY_L)) context.s.mode = MODE_LINE;
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
