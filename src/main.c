@@ -174,9 +174,9 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 		break;
 	case MODE_TEXT:
 		int text_size = s->thick*2;
-		Vector2 size = MeasureTextEx(global_font, "T", text_size, 1.0f);
+		Vector2 size = MeasureTextEx(global_font, "A", text_size, 1.0f);
 		DrawRectangleLines(x, y, w, h, s->color);
-		DrawTextEx(global_font, "T", (Vector2) { x + w/2 - size.x/2, y + h/2 - size.y/2 }, text_size, 1.0f, s->color);
+		DrawTextEx(global_font, "Aa", (Vector2) { x + w/2 - size.x/2, y + h/2 - size.y/2 }, text_size, 1.0f, s->color);
 		text = "Text";
 		break;
 	case MODE_RECT:
@@ -826,7 +826,7 @@ int main(void) {
 					double wheel = GetMouseWheelMove() * 4;
 					context.s.thick += clamped_increment(context.s.thick, wheel, DEFAULT_THICK/2, DEFAULT_THICK+20.0);
 					Vector2 pos = (Vector2){context.mouse_current_position.x+context.s.thick/2, context.mouse_current_position.y};
-					show_stroke_tooltip(pos, TextFormat("Size: %.2f", context.s.thick));
+					show_stroke_tooltip(pos, TextFormat("Thickness: %.2f", context.s.thick));
 				}
 
 				// Change color by Mouse wheel (TAB)
