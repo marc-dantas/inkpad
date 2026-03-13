@@ -3,5 +3,5 @@ dist/
 lib/
 nob
 nob.old
+assets.c
 *.zip
-src/res/

@@ -8,8 +8,7 @@
 #include "raymath.h"
 
 // Assets
-#include "res/IBMPlexMono_SemiBold.c"
-#include "res/Save.c"
+#include "assets.c"
 
 // Shader
 #include "fxaa.c"
