@@ -18,7 +18,7 @@ Clone the repository and build Inkpad using [`nob`](https://github.com/tsoding/n
 
 Provide one of the following command line arguments below to `nob` executable to build for different platforms:
 - `linux-x86_64`: build for Linux x86_64
-- `win-x86_64`: build for Windows x86_64 (using [mingw-w64](https://en.wikipedia.org/wiki/MinGW))
+- `windows-x86_64`: build for Windows x86_64 (using [mingw-w64](https://en.wikipedia.org/wiki/MinGW))
 
 If you do not provide any of them, the default is Linux x86_64.
 
