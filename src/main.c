@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include "raylib.h"
+#include "raymath.h"
 
 // Assets
 #include "res/IBMPlexMono_SemiBold.c"
@@ -60,7 +61,7 @@
     } while (0)
 
 #define da(T) \
-	Image *items; \
+	T *items; \
 	size_t count; \
 	size_t capacity;
 
@@ -95,9 +96,7 @@ typedef struct {
 } History;
 
 typedef struct {
-	History *items;
-	size_t count;
-	size_t capacity;
+	da(History);
 } HistoryList;
 
 void History_push(History* target, RenderTexture2D snapshot) {
@@ -135,11 +134,21 @@ void draw_message(unsigned int x, unsigned int y, char* text) {
 	DrawText(text, x, y, 25, WHITE);
 }
 
-void show_stroke_tooltip(Vector2 position, Stroke* s, const char* text) {
-	int x = position.x;
-	int y = position.y;
-	Vector2 texpos = (Vector2) { x+s->thick/2, y+s->thick/2 };
-	DrawTextEx(global_font, text, texpos, 17.0f, 1.0f, GRAY);
+void show_stroke_tooltip(Vector2 position, const char* text) {
+	Vector2 text_size = MeasureTextEx(global_font, text, 17.0f, 1.0f);
+	int pad = 12;
+	Rectangle frame = (Rectangle){
+		position.x,
+		position.y,
+		text_size.x + pad*2,
+		text_size.y + pad*2
+	};
+	Vector2 text_position = {
+		position.x + pad,
+		position.y + pad,
+	};
+	DrawRectangleLinesEx(frame, 1.0f, GRAY);
+	DrawTextEx(global_font, text, text_position, 17.0f, 1.0f, GRAY);
 }
 
 void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
@@ -151,7 +160,7 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 	switch (s->mode) {
 	case MODE_DRAW:
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
-		text = "Free";
+		text = "Draw";
 		break;
 	case MODE_LINE:
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
@@ -626,6 +635,10 @@ void clear_and_draw_texture(RenderTexture2D canvas, Texture2D draw) {
 	UnloadTexture(draw);
 }
 
+double clamped_increment(double x, double inc, double min, double max) {
+    return ((x+inc) >= min && (x+inc) <= max)? inc : 0.0;
+}
+
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
 	
@@ -810,10 +823,10 @@ int main(void) {
 				
 				// Change Thickness by Mouse wheel (LEFT ALT)
 				if (IsKeyDown(KEY_LEFT_ALT)) {
-					double wheel = GetMouseWheelMove() * 3;
-					if (wheel < 0) context.s.thick += context.s.thick >= DEFAULT_THICK/2 ? wheel : 0;
-					else if (wheel > 0) context.s.thick += context.s.thick <= DEFAULT_THICK + 20.0f ? wheel : 0;
-					show_stroke_tooltip(context.mouse_current_position, &context.s, TextFormat("Size: %.2f", context.s.thick));
+					double wheel = GetMouseWheelMove() * 4;
+					context.s.thick += clamped_increment(context.s.thick, wheel, DEFAULT_THICK/2, DEFAULT_THICK+20.0);
+					Vector2 pos = (Vector2){context.mouse_current_position.x+context.s.thick/2, context.mouse_current_position.y};
+					show_stroke_tooltip(pos, TextFormat("Size: %.2f", context.s.thick));
 				}
 
 				// Change color by Mouse wheel (TAB)
@@ -839,12 +852,13 @@ int main(void) {
 						context.s.color = color_options[selected <= len ? selected : len-1];
 				}
 
-				// Stroke smoothness
+				// Stroke smoothness by Mouse wheel
 				if (IsKeyDown(KEY_S) && context.s.mode == MODE_DRAW) {
-					double wheel = GetMouseWheelMove() * 3;
-					int inc = wheel > 0 ? 1 : (wheel == 0 ? 0 : -1);
-					context.s.smoothness += context.s.smoothness > 0 && context.s.smoothness < MAX_SMOOTH_LEASH_SIZE ? inc : 0;
-					show_stroke_tooltip(context.mouse_current_position, &context.s, TextFormat("Smoothness: %.2f", (float)context.s.smoothness));
+					double wheel = GetMouseWheelMove();
+					context.s.smoothness += clamped_increment(context.s.smoothness, wheel, 0, MAX_SMOOTH_LEASH_SIZE);
+					DrawCircleLinesV(context.mouse_current_position, context.s.smoothness, context.s.color);
+					Vector2 pos = (Vector2){context.mouse_current_position.x+context.s.smoothness, context.mouse_current_position.y};
+					show_stroke_tooltip(pos, TextFormat("Smoothness: %.2f", (float)context.s.smoothness));
 				}
 				
 				// Quick erase
