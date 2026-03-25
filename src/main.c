@@ -125,11 +125,10 @@ bool color_eq(Color a, Color b) {
 
 // Global context and assets
 static Font global_font;
-static Texture2D save_icon;
 
 static Context context = {0};
 
-void draw_message(unsigned int x, unsigned int y, char* text) {
+void draw_message(unsigned int x, unsigned int y, const char* text) {
 	DrawText(text, x, y, 25, WHITE);
 }
 
@@ -358,6 +357,7 @@ void draw(Context* context) {
 				MODE_ERASE,
 				s->thick,
 				DEFAULT_BGCOLOR,
+				DEFAULT_SMOOTH_LEASH_SIZE
 			});
 		}
 		break;
@@ -532,13 +532,6 @@ void draw_preview(Context* context) {
 	}
 }
 
-void save_canvas_as_image(Texture2D canvas, const char* filename) {
-	Image i = LoadImageFromTexture(canvas);
-	ImageFlipVertical(&i);
-	ExportImage(i, filename);
-	UnloadImage(i);
-}
-
 void set_status_caption(char* buffer, int* timer, const char* message) {
 	strcpy(buffer, message);
 	*timer = DEFAULT_SLEEP_TIME;
@@ -547,6 +540,8 @@ void set_status_caption(char* buffer, int* timer, const char* message) {
 void debug_text(char* txt, int x, int y) {
 	DrawTextEx(global_font, txt, (Vector2) { x, y }, 20.0f, 1.0f, GREEN);
 }
+
+#define STATUS_TEXT_MAX_SIZE 128
 
 void draw_panel(
 	Context* context,
@@ -606,24 +601,13 @@ void draw_panel(
 	}
 	starting_pos += bb.width*MAX_PAGES;
 
-	// Save button
-	starting_pos += PANEL_PADDING;
-	DrawTextEx(global_font, "Save", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-	draw_texture_button(&bb, save_icon, starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
-	if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-		char* home = INKPAD_HOME;
-		const char* filename = TextFormat("%s/inkpad_page%d.png", home, context->current_page+1);
-		save_canvas_as_image(context->canvas->texture, filename);
-		set_status_caption(status_text, status_timer, TextFormat("Saved canvas successfully as \"%s\".", filename));
-	}
-	starting_pos += bb.width;
-
 	// Status text
 	DrawTextEx(global_font, "Status", (Vector2) { starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 	DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 5, window_height - PANEL_HEIGHT + PANEL_PADDING+25 }, window_width/100, 1.0f, GREEN);
 	DrawRectangleLines(starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, window_width - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
+
 	if (*status_timer > 0) (*status_timer)--;
-	else memset(status_text, 0, sizeof(status_text));
+	else memset(status_text, 0, STATUS_TEXT_MAX_SIZE);
 }
 
 void clear_and_draw_texture(RenderTexture2D canvas, Texture2D draw) {
@@ -638,6 +622,7 @@ double clamped_increment(double x, double inc, double min, double max) {
     return ((x+inc) >= min && (x+inc) <= max)? inc : 0.0;
 }
 
+
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
 	
@@ -651,7 +636,6 @@ int main(void) {
 
 	// Loading assets and configuration
 	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 100, NULL, 0);;;;;;
-	save_icon = LoadTextureFromImage(LoadImageFromMemory(".png", Save_png, Save_size));
 
 	Shader fxaa = LoadShaderFromMemory(0, fxaa_shader);
 	int resLoc = GetShaderLocation(fxaa, "resolution");
@@ -689,7 +673,7 @@ int main(void) {
 	// Interface
 	Color color_options[] = { BLACK, WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
 
-	char status_text[128] = {0};
+	char status_text[STATUS_TEXT_MAX_SIZE] = {0};
 	int status_timer = 0;
 	bool show_panel = true;
 
@@ -715,7 +699,7 @@ int main(void) {
 					History* h = &context.history.items[context.current_page];
 					if (h->cursor < h->count) {
 						// Deallocate all snapshots after the cursor
-						for (int i = h->cursor+1; i < h->count; i++) {
+						for (size_t i = h->cursor+1; i < h->count; i++) {
 							UnloadImage(h->items[i]);
 							TraceLog(LOG_INFO, "Deallocated snapshot from History");
 						}
@@ -843,12 +827,8 @@ int main(void) {
 					size_t pad = context.s.thick/2;
 
 					size_t selected = (index-wheel);
-					draw_color_option(NULL, pos.x + pad, pos.y + pad, false, color);
-					
-					if (selected < 0)
-						context.s.color = color_options[selected >= 0 ? selected : 0];
-					else
-						context.s.color = color_options[selected <= len ? selected : len-1];
+					draw_color_option(NULL, pos.x + pad, pos.y + pad, false, color);					
+					context.s.color = color_options[selected <= len ? selected : len-1];
 				}
 
 				// Stroke smoothness by Mouse wheel
