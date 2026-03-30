@@ -10,9 +10,6 @@
 // Assets
 #include "assets.c"
 
-// Shader
-#include "fxaa.c"
-
 // General constants
 #define DEFAULT_BGCOLOR    (Color){18, 18, 18, 255}
 #define PANEL_BGCOLOR      (Color){18, 18, 18, 130}
@@ -25,6 +22,7 @@
 #define DEFAULT_SMOOTH_LEASH_SIZE 4  // how long (delayed) is the pen in draw stroke mode (in pixels).
                                      // In other words, how much you have to drag the mouse to start drawing
 #define MAX_SMOOTH_LEASH_SIZE    30
+#define MAX_TEXT_SIZE            256
 
 // System constants
 #ifdef _WIN32
@@ -68,11 +66,12 @@
 #define DEFAULT_THICK 8.0f
 
 typedef enum {
-	MODE_DRAW = 0,
+	MODE_ERASE = 0,
+	
+	MODE_DRAW,
 	MODE_LINE,
 	MODE_RECT,
 	MODE_TEXT,
-	MODE_ERASE,
 	MODE_CIRCLE,
 } Mode;
 
@@ -82,12 +81,6 @@ typedef struct {
 	Color color;
 	int smoothness; // value in pixels of the radius of smooth leash
 } Stroke;
-
-typedef struct {
-	Vector2 pos;
-	char content[1024];
-	bool active;
-} TextState;
 
 typedef struct {
 	da(Image);
@@ -104,13 +97,51 @@ void History_push(History* target, RenderTexture2D snapshot) {
 	da_append(target, img);
 }
 
+typedef enum {
+	ENTITY_PATH = 0,
+	ENTITY_LINE,
+	ENTITY_RECT,
+	ENTITY_CIRCLE,
+	ENTITY_TEXT
+} EntityKind;
+
+typedef struct {
+	EntityKind kind;
+	Stroke stroke;
+	union {
+		struct { Vector2* items; size_t count, capacity; } path;
+		struct { Vector2 start; Vector2 end; } line;
+		struct { Rectangle bb; } rect;
+		struct { Vector2 center; size_t radius; } circle;
+		struct { Vector2 position; char content[MAX_TEXT_SIZE]; } text;
+	};
+} Entity;
+
+void sprintentity(char* buf, Entity ent) {
+	switch (ent.kind) {
+	case ENTITY_TEXT: buf = "ENTITY_TEXT"; break;
+	case ENTITY_CIRCLE: buf = "ENTITY_CIRCLE"; break;
+	case ENTITY_RECT: buf = "ENTITY_RECT"; break;
+	case ENTITY_LINE: buf = "ENTITY_LINE"; break;
+	case ENTITY_PATH: buf = "ENTITY_PATH"; break;
+	default: buf = "?"; break;
+	}
+	return;
+}
+
+typedef struct {
+	Entity* items;
+	size_t count, capacity;
+} Canvas;
+
 typedef struct {
 	bool cancel;                       // Flag to cancel the current stroke action being done
+	bool typing;                       // When in text mode during typing, this flag is true
 	size_t current_page;               // Index of the current page selected
-	RenderTexture2D* canvas;           // Current canvas object
+	Canvas* canvas;                    // Current canvas object
+	Entity current_entity;             // Current entity to be saved between frames
 	Stroke s;                          // Current stroke state
 	Vector2 last_point;                // Used to save the previous point clicked while holding LMB
-	TextState text;                    // Current text state
 	HistoryList history;               // List of all histories across the pages
 	Vector2 mouse_last_position, mouse_current_position; 
 } Context;
@@ -172,7 +203,7 @@ void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
 		break;
 	case MODE_TEXT:
 		int text_size = s->thick*2;
-		Vector2 size = MeasureTextEx(global_font, "A", text_size, 1.0f);
+		Vector2 size = MeasureTextEx(global_font, "Aa", text_size, 1.0f);
 		DrawRectangleLines(x, y, w, h, s->color);
 		DrawTextEx(global_font, "Aa", (Vector2) { x + w/2 - size.x/2, y + h/2 - size.y/2 }, text_size, 1.0f, s->color);
 		text = "Text";
@@ -235,9 +266,10 @@ bool check_boundingbox(Rectangle bb, Vector2 pos) {
 
 // Modes //
 
-void draw_free(Vector2 start, Vector2 end, Stroke *s) {
-	float thick = s->thick;
-	Color color = s->color;
+void draw_path(Vector2 start, Vector2 end, Stroke s) {
+	float thick = s.thick;
+	Color color = s.color;
+	DrawCircleV(start, thick/2, color);
 	DrawLineEx(start, end, thick, color);
 	DrawCircleV(end, thick/2, color);
 }
@@ -255,13 +287,19 @@ void draw_rect(Rectangle rect, Stroke* s) {
 // Main draw function that handles when you click LMB
 void draw(Context* context) {
 	Stroke* s = &context->s;
-	TextState* text = &context->text;
 	Vector2* last_point = &context->last_point;
 	Vector2 mouse_current_position = context->mouse_current_position;
 	Vector2 mouse_last_position = context->mouse_last_position;
+	Entity* ent = &context->current_entity;
+
+	bool entity_done = false;
+	
+	ent->stroke = *s;
 	
 	switch (s->mode) {
 	case MODE_DRAW:
+		ent->kind = ENTITY_PATH;
+		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) entity_done = true;
 		if (s->smoothness > 0) {
 			if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 				*last_point = mouse_current_position;
@@ -278,24 +316,31 @@ void draw(Context* context) {
 				    Vector2 prev = context->last_point;
 				    context->last_point.x += dir.x * t;
 				    context->last_point.y += dir.y * t;
-				    draw_free(prev, context->last_point, s);
+				    da_append(&ent->path, prev);
+				    da_append(&ent->path, context->last_point);
 				}
 			}
 			break;
 		}
 		// Fall to the non-smooth draw
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_free(mouse_last_position, mouse_current_position, s);
+			da_append(&ent->path, mouse_last_position);
+		    da_append(&ent->path, mouse_current_position);
 		}
 		break;
 	case MODE_LINE:
+		ent->kind = ENTITY_LINE;
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
 			*last_point = mouse_current_position;
 		
-		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
-			draw_line(*last_point, mouse_current_position, s);
+		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+			ent->line.start = *last_point;
+			ent->line.end = mouse_current_position;
+			entity_done = true;
+		}
 		break;
 	case MODE_RECT:
+		ent->kind = ENTITY_RECT;
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
 			*last_point = mouse_current_position;
 		
@@ -322,38 +367,44 @@ void draw(Context* context) {
 				rect.height = mouse_current_position.y - last_point->y;
 				rect.y = last_point->y;
 			}
-			draw_rect(rect, s);
+
+			ent->rect.bb = rect;
+			entity_done = true;
 		}
 		break;
 	case MODE_TEXT:
+		ent->kind = ENTITY_TEXT;
 		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-			text->pos = mouse_current_position;
-			text->active = true;
+			*last_point = mouse_current_position;
+			context->typing = true;
 		}
-		if (text->active) {
+		
+		if (context->typing) {
 			if (context->cancel) {
-				text->active = false;
-				memset(text->content, 0, sizeof(text->content));
+				context->typing = false;
+				memset(ent->text.content, 0, sizeof(ent->text.content));
 				context->cancel = false;
 				break;
 			}
 			if (IsKeyPressed(KEY_ENTER)) {
 				int text_size = s->thick*3;
-				DrawTextEx(global_font, text->content, (Vector2) { text->pos.x, text->pos.y - text_size/2 }, text_size, 1.0f, s->color);
-				memset(text->content, 0, sizeof(text->content));
-				text->active = false;
+				ent->text.position = *last_point;
+				context->typing = false;
+				entity_done = true;
 			} else if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
-				int last = strlen(text->content) > 0 ? strlen(text->content)-1 : 0;
-				text->content[last] = 0;
+				int last = strlen(ent->text.content) > 0 ? strlen(ent->text.content)-1 : 0;
+				ent->text.content[last] = 0;
 			} else {
 				char c = GetCharPressed();
-				text->content[strlen(text->content)] = c;
+				size_t i = strlen(ent->text.content);
+				if (i < MAX_TEXT_SIZE)
+					ent->text.content[strlen(ent->text.content)] = c;
 			}
 		}
 		break;
 	case MODE_ERASE:
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_free(mouse_last_position, mouse_current_position, &(Stroke) {
+			draw_path(mouse_last_position, mouse_current_position, (Stroke) {
 				MODE_ERASE,
 				s->thick,
 				DEFAULT_BGCOLOR,
@@ -362,6 +413,7 @@ void draw(Context* context) {
 		}
 		break;
 	case MODE_CIRCLE:
+		ent->kind = ENTITY_CIRCLE;
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			*last_point = mouse_current_position;
 		}
@@ -374,23 +426,36 @@ void draw(Context* context) {
 			a = last_point->y - mouse_current_position.y;
 			b = last_point->x - mouse_current_position.x;
 			c = sqrt(a*a + b*b);
-			DrawRing(*last_point, c, c + s->thick, 0.0f, 360.0f, 80, s->color);
+			ent->circle.center = *last_point;
+			ent->circle.radius = c + s->thick;
+			entity_done = true;
 		}
 		break;
+	}
+	if (entity_done) {
+		da_append(context->canvas, context->current_entity);
+		TraceLog(LOG_INFO, "Added entity #%zu", context->canvas->count);
+		memset(&context->current_entity, 0, sizeof(Entity));
 	}
 }
 
 // Function to handle the drawing of the stroke before you press LMB (preview)
 void draw_preview(Context* context) {
 	Vector2 pos = context->mouse_current_position;
-	
 	Vector2* last_point = &context->last_point;
-	TextState* text = &context->text;
 	Stroke* s = &context->s;
+	Entity entity = context->current_entity;
+	Entity* ent = &context->current_entity;
 	
 	Color c = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? s->color : WHITE;
+	
 	switch (s->mode) {
 	case MODE_DRAW:
+		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && entity.kind == ENTITY_PATH && entity.path.count > 0) {
+			for (size_t j = 0; j < entity.path.count - 1; j++) {
+				draw_path(entity.path.items[j], entity.path.items[j+1], entity.stroke);
+			}
+		}
 		if (s->smoothness > 0) {
 			if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 				DrawLineV(context->last_point, context->mouse_current_position, c);
@@ -448,65 +513,65 @@ void draw_preview(Context* context) {
 		break;
 	case MODE_TEXT:
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 3.0f, c);
-		if (text->active) {
+		if (context->typing) {
 			if (IsKeyPressed(CANCEL_KEY)) context->cancel = true;
 			if (context->cancel) break;
 			if (IsKeyPressed(KEY_ENTER)) break;
 			int text_wid;
-			int text_size = s->thick*3;
+			int text_size = s->thick*2;
 			int pad = 15;
 			int cursor_wid = text_size/2;
-			if (*(text->content) == 0) {
+			if (*(ent->text.content) == 0) {
 				const char* msg = "Start typing...";
 				text_wid = MeasureTextEx(global_font, msg, text_size, 1.0f).x;
 				DrawTextEx(
 					global_font,
 					msg,
-					(Vector2) { text->pos.x, text->pos.y - text_size/2 },
+					(Vector2) { last_point->x, last_point->y - text_size/2 },
 					text_size,
 					2.0f,
 					GRAY
 				);
 				DrawLineEx(
 					(Vector2) {
-						text->pos.x,
-						text->pos.y + text_size/2 - text_size*0.1
+						last_point->x,
+						last_point->y + text_size/2
 					}, // x
 					(Vector2) {
-						text->pos.x + cursor_wid,
-						text->pos.y + text_size/2 - text_size*0.1,
+						last_point->x + cursor_wid,
+						last_point->y + text_size/2,
 					}, // y
 					3.0f,
 					c
 				);
 			} else {
-				text_wid = MeasureTextEx(global_font, text->content, text_size, 1.0f).x;
+				text_wid = MeasureTextEx(global_font, ent->text.content, text_size, 1.0f).x;
 				DrawTextEx(
 					global_font,
-					text->content,
-					(Vector2) { text->pos.x, text->pos.y - text_size/2 },
+					ent->text.content,
+					(Vector2) { last_point->x, last_point->y - text_size/2 },
 					text_size,
 					1.0f,
 					WHITE
 				);
 				DrawLineEx(
 					(Vector2) {
-						text->pos.x + text_wid,
-						text->pos.y + text_size/2 - text_size*0.1
+						last_point->x + text_wid,
+						last_point->y + text_size/2
 					}, // x
 					(Vector2) {
-						text->pos.x + text_wid + cursor_wid,
-						text->pos.y + text_size/2 - text_size*0.1,
+						last_point->x + text_wid + cursor_wid,
+						last_point->y + text_size/2,
 					}, // y
 					3.0f,
 					c
 				);
 			}
 			DrawRectangleLines(
-				text->pos.x               - pad,
-				text->pos.y - text_size/2 - pad,
-				text_wid    + cursor_wid  + pad*2,
-				text_size                 + pad*2,
+				last_point->x               - pad,
+				last_point->y - text_size/2 - pad,
+				text_wid      + cursor_wid  + pad*2,
+				text_size                   + pad*2,
 				s->color
 			);
 		}
@@ -549,7 +614,7 @@ void draw_panel(
 	int window_height,
 	int* status_timer,
 	char* status_text,
-	RenderTexture2D pages[MAX_PAGES],
+	Canvas pages[MAX_PAGES],
 	Color* color_options,
 	int n_color_options
 ) {
@@ -610,18 +675,39 @@ void draw_panel(
 	else memset(status_text, 0, STATUS_TEXT_MAX_SIZE);
 }
 
-void clear_and_draw_texture(RenderTexture2D canvas, Texture2D draw) {
-	BeginTextureMode(canvas);
-	ClearBackground(DEFAULT_BGCOLOR);
-	DrawTexture(draw, 0, 0, WHITE);
-	EndTextureMode();
-	UnloadTexture(draw);
-}
-
 double clamped_increment(double x, double inc, double min, double max) {
     return ((x+inc) >= min && (x+inc) <= max)? inc : 0.0;
 }
 
+void render_canvas(const Canvas* canvas) {
+	for (size_t i = 0; i < canvas->count; i++) {
+		Entity entity = canvas->items[i];
+		switch (entity.kind) {
+		case ENTITY_PATH: {
+			if (entity.path.count <= 0) break;
+			for (size_t j = 0; j < entity.path.count - 1; j++) {
+				draw_path(entity.path.items[j], entity.path.items[j+1], entity.stroke);
+			}
+		} break;
+		case ENTITY_LINE: {
+			DrawLineEx(entity.line.start, entity.line.end, entity.stroke.thick, entity.stroke.color);
+		} break;
+		case ENTITY_RECT: {
+			DrawRectangleLinesEx(entity.rect.bb, entity.stroke.thick, entity.stroke.color);
+		} break;
+		case ENTITY_CIRCLE: {
+			DrawRing(entity.circle.center, entity.circle.radius, entity.circle.radius + entity.stroke.thick, 0, 360, 60, entity.stroke.color);
+		} break;
+		case ENTITY_TEXT: {
+			Vector2 text_pos = {
+				entity.text.position.x,
+				entity.text.position.y - entity.stroke.thick
+			};
+			DrawTextEx(global_font, entity.text.content, text_pos, entity.stroke.thick * 2, 1.0f, entity.stroke.color);
+		} break;
+		}
+	}
+}
 
 int main(void) {
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
@@ -629,19 +715,17 @@ int main(void) {
 	// Initialization
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
 	InitWindow(0, 0, "Inkpad");
-	size_t window_width = GetScreenWidth();
-	size_t window_height = GetScreenHeight();
 	SetTargetFPS(120);
 	SetExitKey(0);
 
+	size_t window_width = GetScreenWidth();
+	size_t window_height = GetScreenHeight();
+	TraceLog(LOG_INFO, "Window Width: %zu", window_width);
+	TraceLog(LOG_INFO, "Window Height: %zu", window_height);
+	
 	// Loading assets and configuration
 	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 100, NULL, 0);;;;;;
-
-	Shader fxaa = LoadShaderFromMemory(0, fxaa_shader);
-	int resLoc = GetShaderLocation(fxaa, "resolution");
-	Vector2 res = { (float)window_width, (float)window_height };
-	SetShaderValue(fxaa, resLoc, &res, SHADER_UNIFORM_VEC2);
-
+	
 	// Context and canvas
 	context.s = (Stroke){
 		.mode = MODE_DRAW,
@@ -649,26 +733,12 @@ int main(void) {
 		.color = GREEN,
 		.smoothness = DEFAULT_SMOOTH_LEASH_SIZE,
 	};
-	context.text = (TextState){0};
 	
 	Mode saved_mode = context.s.mode;
 
-	RenderTexture2D pages[MAX_PAGES] = {
-		LoadRenderTexture(window_width, window_height), // These 100 pixels is the height if the status panel
-		LoadRenderTexture(window_width, window_height),
-		LoadRenderTexture(window_width, window_height),
-		LoadRenderTexture(window_width, window_height),
-		LoadRenderTexture(window_width, window_height)
-	};
+	Canvas pages[MAX_PAGES] = {0};
 	context.current_page = 0;
 	context.canvas = &pages[context.current_page];
-
-	for (int i = 0; (size_t)i < sizeof(pages)/sizeof(RenderTexture2D); ++i) {
-		da_append(&context.history, (History){0});
-		BeginTextureMode(pages[i]);
-		ClearBackground(DEFAULT_BGCOLOR);
-		EndTextureMode();
-	}
 
 	// Interface
 	Color color_options[] = { BLACK, WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
@@ -682,53 +752,24 @@ int main(void) {
 	
 	// Window
 	while (!WindowShouldClose()) {
-		context.mouse_current_position = GetMousePosition();
-
-		bool is_on_canvas = check_boundingbox(
-			(Rectangle) {
-				0, 0,
-				window_width,
-				window_height - (show_panel ? PANEL_HEIGHT : 0) - context.s.thick/2
-			},
-			context.mouse_current_position
-		);
-		
-		BeginTextureMode(*context.canvas);
+		BeginDrawing();
+			context.mouse_current_position = GetMousePosition();
+			bool is_on_canvas = check_boundingbox(
+				(Rectangle) {
+					0, 0,
+					window_width,
+					window_height - (show_panel ? PANEL_HEIGHT : 0) - context.s.thick/2
+				},
+				context.mouse_current_position
+			);
 			if (is_on_canvas) {
-				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					History* h = &context.history.items[context.current_page];
-					if (h->cursor < h->count) {
-						// Deallocate all snapshots after the cursor
-						for (size_t i = h->cursor+1; i < h->count; i++) {
-							UnloadImage(h->items[i]);
-							TraceLog(LOG_INFO, "Deallocated snapshot from History");
-						}
-						h->count = h->cursor; // cut loose the history list "tail"
-					}
-					History_push(h, *context.canvas);
-					h->cursor++;
-				}
 				draw(&context);
 			}
-		EndTextureMode();
-		BeginDrawing();
 			ClearBackground((Color){ 40, 40, 40, 255 });
 			
-			BeginShaderMode(fxaa);
-			// Draw canvas
-			DrawTextureRec(
-				context.canvas->texture,
-			    (Rectangle){
-			    	0,
-			    	0,
-			    	(float)context.canvas->texture.width,
-			    	-(float)context.canvas->texture.height
-			    }, // Flips the texture so it doesn't look upside down bc of opengl shit
-				(Vector2){0, 0},
-				WHITE
-			);
-			EndShaderMode();
-			
+
+			render_canvas(context.canvas);
+
 			if (show_panel) draw_panel(
 				&context,
 				window_width,
@@ -762,7 +803,7 @@ int main(void) {
 			);
 
 			// Input
-			if (!context.text.active) {
+			if (!context.typing) {
 				// Thickness Operations
 				if (IsKeyPressed(KEY_ONE))   context.s.thick = DEFAULT_THICK;
 				if (IsKeyPressed(KEY_TWO))   context.s.thick = DEFAULT_THICK + 5.0f;
@@ -781,27 +822,27 @@ int main(void) {
 					window_height = GetScreenHeight();
 				}
 
-				// Quit key
+				// Quit and Cancel key
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Q)) break;
 				if (context.cancel) set_status_caption(status_text, &status_timer, "Action cancelled");
 
 				// Undo
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
-					History* h = &context.history.items[context.current_page];
-					if (h->cursor > 0) {
-						if (h->cursor == h->count) History_push(h, *context.canvas); // Save state before undo to be able to redo
-						clear_and_draw_texture(*context.canvas, LoadTextureFromImage(h->items[--h->cursor]));
-						set_status_caption(status_text, &status_timer, "Undid action");
-					}
+					// History* h = &context.history.items[context.current_page];
+					// if (h->cursor > 0) {
+					// 	if (h->cursor == h->count) History_push(h, *context.canvas); // Save state before undo to be able to redo
+					// 	clear_and_draw_texture(*context.canvas, LoadTextureFromImage(h->items[--h->cursor]));
+					// 	set_status_caption(status_text, &status_timer, "Undid action");
+					// }
 				}
 
 				// Redo
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y)) {
-					History* h = &context.history.items[context.current_page];
-					if (h->cursor + 1 < h->count) {
-						clear_and_draw_texture(*context.canvas, LoadTextureFromImage(h->items[++h->cursor]));
-						set_status_caption(status_text, &status_timer, "Redid action");
-					}
+					// History* h = &context.history.items[context.current_page];
+					// if (h->cursor + 1 < h->count) {
+					// 	clear_and_draw_texture(*context.canvas, LoadTextureFromImage(h->items[++h->cursor]));
+					// 	set_status_caption(status_text, &status_timer, "Redid action");
+					// }
 				}
 				
 				// Change Thickness by Mouse wheel (LEFT ALT)
@@ -863,9 +904,7 @@ int main(void) {
 				if (IsKeyPressed(KEY_L)) context.s.mode = MODE_LINE;
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
-						BeginTextureMode(*context.canvas);
-						ClearBackground(DEFAULT_BGCOLOR);				
-						EndTextureMode();
+						context.canvas->count = 0;
 						set_status_caption(status_text, &status_timer, "Cleared screen");
 					} else {
 						context.s.mode = MODE_ERASE;
@@ -899,7 +938,8 @@ int main(void) {
 		context.mouse_last_position = context.mouse_current_position;
 	}
 
-	UnloadRenderTexture(*context.canvas);
+	// UnloadRenderTexture(*context.canvas);
 	CloseWindow();
 	return 0;
 }
+
