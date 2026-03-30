@@ -102,7 +102,7 @@ bool release(const char* name, const char* build_path) {
 	return cmd_run(&cmd);
 }
 
-bool build_linux_x86_64(void) {
+bool build_linux_x86_64(bool debug) {
 	const char* output = OUTPUT_DIR"linux-x86_64/inkpad";
 	if (!mkdir_if_not_exists(OUTPUT_DIR"linux-x86_64")) return false;
 
@@ -111,6 +111,9 @@ bool build_linux_x86_64(void) {
 	
 	// compiler flags
 	cmd_append(&cmd, "-Wall", "-Wextra");
+
+	// Debug
+	if (debug) cmd_append(&cmd, "-DDEBUG");
 	
 	// linking and include
 	cmd_append(&cmd, "-I/usr/local/include", "-lraylib", "-lm");
@@ -118,7 +121,7 @@ bool build_linux_x86_64(void) {
 	return cmd_run(&cmd);
 }
 
-bool build_windows_x86_64(void) {
+bool build_windows_x86_64(bool debug) {
 	const char* output = OUTPUT_DIR"windows-x86_64/inkpad";
 	if (!mkdir_if_not_exists(OUTPUT_DIR"windows-x86_64")) return false;
 	
@@ -128,6 +131,9 @@ bool build_windows_x86_64(void) {
 	
 	// compiler flags
 	cmd_append(&cmd, "-Wall", "-Wextra");
+
+	// debug
+	if (debug) cmd_append(&cmd, "-DDEBUG");
 
 	// linking and include
 	cmd_append(&cmd, "-I/usr/local/include", "-L./lib", "-lraylib", "-lwinmm", "-lgdi32");
@@ -139,7 +145,7 @@ bool build_windows_x86_64(void) {
 
 typedef struct {
 	const char* name;
-	bool (*build)(void);
+	bool (*build)(bool);
 } Platform;
 
 static const Platform platforms[] = {
@@ -200,7 +206,7 @@ int main(int argc, char** argv) {
 		Platform plat = platforms[0];
 		nob_log(NOB_WARNING, "Platform not provided. Defaulting to %s", plat.name);
 		nob_log(NOB_INFO, "Building Inkpad for %s", plat.name);
-		if (!(*plat.build)()) return 1;
+		if (!(*plat.build)(true)) return 1;
 		return 0;
 	}
 
@@ -209,24 +215,15 @@ int main(int argc, char** argv) {
 			Platform plat = platforms[i];
 			nob_log(NOB_INFO, "Releasing Inkpad for %s", plat.name);
 			if (argc < 3) {
-				if (!(*plat.build)()) return 1;
+				if (!(*plat.build)(false)) return 1;
 				release(temp_sprintf("inkpad-%s", plat.name), temp_sprintf(OUTPUT_DIR"%s", plat.name));
 			} else if (strcmp(argv[1], plat.name) == 0) {
-				if (!(*plat.build)()) return 1;
+				if (!(*plat.build)(false)) return 1;
 				release(temp_sprintf("inkpad-%s", plat.name), temp_sprintf(OUTPUT_DIR"%s", plat.name));
 				return 0;
 			}
 		}
 		return 0;
-	}
-	
-	for (size_t i = 0; i < ARRAY_LEN(platforms); i++) {
-		Platform plat = platforms[i];
-		if (strcmp(argv[1], plat.name) == 0) {
-			nob_log(NOB_INFO, "Building Inkpad for %s", plat.name);
-			if (!(*plat.build)()) return 1;
-			return 0;
-		}
 	}
 
 	if (strcmp(argv[1], "clean") == 0) {
@@ -237,7 +234,7 @@ int main(int argc, char** argv) {
 	if (strcmp(argv[1], "run") == 0) {
 		Platform plat = platforms[0];
 		nob_log(NOB_INFO, "Building + Running Inkpad for %s", plat.name);
-		if (!(*plat.build)()) return 1;
+		if (!(*plat.build)(true)) return 1;
 		cmd_append(&cmd, temp_sprintf("./%s/%s/inkpad", OUTPUT_DIR, plat.name));
 		if (!cmd_run(&cmd)) return 1;
 		return 0;
