@@ -247,16 +247,6 @@ void draw_page_option(Rectangle* boundingbox, bool selected, int number, unsigne
 	boundingbox->height = 50;
 }
 
-void draw_texture_button(Rectangle* boundingbox, Texture2D tex, unsigned int x, unsigned int y) {
-	float scaleX = (float)52 / tex.width;
-    float scaleY = (float)52 / tex.height;
-	DrawTextureEx(tex, (Vector2){x, y}, 0.0f, (scaleX < scaleY) ? scaleX : scaleY, WHITE);
-	boundingbox->x = x;
-	boundingbox->y = y;
-	boundingbox->width = 50;
-	boundingbox->height = 50;
-}
-
 bool check_boundingbox(Rectangle bb, Vector2 pos) {
     return (pos.x >= bb.x) &&
            (pos.x <= bb.x + bb.width) &&
@@ -274,14 +264,14 @@ void draw_path(Vector2 start, Vector2 end, Stroke s) {
 	DrawCircleV(end, thick/2, color);
 }
 
-void draw_line(Vector2 start, Vector2 end, Stroke* s) {
-	DrawCircleV(start, s->thick/2, s->color);
-	DrawLineEx(start, end, s->thick, s->color);
-	DrawCircleV(end, s->thick/2, s->color);
+void draw_line(Vector2 start, Vector2 end, Stroke s) {
+	DrawCircleV(start, s.thick/2, s.color);
+	DrawLineEx(start, end, s.thick, s.color);
+	DrawCircleV(end, s.thick/2, s.color);
 }
 
-void draw_rect(Rectangle rect, Stroke* s) {
-	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s->thick, s->color);
+void draw_rect(Rectangle rect, Stroke s) {
+	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s.thick, s.color);
 }
 
 // Main draw function that handles when you click LMB
@@ -473,7 +463,7 @@ void draw_preview(Context* context) {
 		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y }, (Vector2) { pos.x + s->thick/2, pos.y }, 1.0f, c);
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_line(*last_point, pos, &(Stroke){
+			draw_line(*last_point, pos, (Stroke) {
 				MODE_LINE,
 				1.0f,
 				WHITE,
@@ -503,7 +493,7 @@ void draw_preview(Context* context) {
 				rect.height = pos.y - last_point->y;
 				rect.y = last_point->y;
 			}
-			draw_rect(rect, &(Stroke) {
+			draw_rect(rect, (Stroke) {
 				MODE_RECT,
 				1.0f,
 				WHITE,
@@ -690,10 +680,10 @@ void render_canvas(const Canvas* canvas) {
 			}
 		} break;
 		case ENTITY_LINE: {
-			DrawLineEx(entity.line.start, entity.line.end, entity.stroke.thick, entity.stroke.color);
+			draw_line(entity.line.start, entity.line.end, entity.stroke);
 		} break;
 		case ENTITY_RECT: {
-			DrawRectangleLinesEx(entity.rect.bb, entity.stroke.thick, entity.stroke.color);
+			draw_rect(entity.rect.bb, entity.stroke);
 		} break;
 		case ENTITY_CIRCLE: {
 			DrawRing(entity.circle.center, entity.circle.radius, entity.circle.radius + entity.stroke.thick, 0, 360, 60, entity.stroke.color);
