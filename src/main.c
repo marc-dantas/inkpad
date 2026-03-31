@@ -417,7 +417,7 @@ void draw(Context* context) {
 			b = last_point->x - mouse_current_position.x;
 			c = sqrt(a*a + b*b);
 			ent->circle.center = *last_point;
-			ent->circle.radius = c + s->thick;
+			ent->circle.radius = c;
 			entity_done = true;
 		}
 		break;
