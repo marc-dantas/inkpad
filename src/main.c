@@ -76,7 +76,6 @@ typedef enum {
 } Mode;
 
 typedef struct {
-	Mode mode;
 	float thick;
 	Color color;
 	int smoothness; // value in pixels of the radius of smooth leash
@@ -138,6 +137,7 @@ typedef struct {
 	bool cancel;                       // Flag to cancel the current stroke action being done
 	bool typing;                       // When in text mode during typing, this flag is true
 	size_t current_page;               // Index of the current page selected
+	Mode mode;                         // Current mode
 	Canvas* canvas;                    // Current canvas object
 	Entity current_entity;             // Current entity to be saved between frames
 	Stroke s;                          // Current stroke state
@@ -180,13 +180,14 @@ void show_stroke_tooltip(Vector2 position, const char* text) {
 	DrawTextEx(global_font, text, text_position, 17.0f, 1.0f, GRAY);
 }
 
-void show_stroke(unsigned int x, unsigned int y, Stroke* s) {
+void show_stroke(Context* context, unsigned int x, unsigned int y) {
 	int w = 50;
 	int h = 50;
+	Stroke* s = &context->s;
 	DrawTextEx(global_font, "MODE", (Vector2) { x + w + 5, y }, 15.0f, 1.0f, GRAY);
 	Vector2 texpos = (Vector2) { x + w + 5, y+10 };
 	char* text = "Unknown";
-	switch (s->mode) {
+	switch (context->mode) {
 	case MODE_DRAW:
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		text = "Draw";
@@ -286,7 +287,7 @@ void draw(Context* context) {
 	
 	ent->stroke = *s;
 	
-	switch (s->mode) {
+	switch (context->mode) {
 	case MODE_DRAW:
 		ent->kind = ENTITY_PATH;
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) entity_done = true;
@@ -395,7 +396,6 @@ void draw(Context* context) {
 	case MODE_ERASE:
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_path(mouse_last_position, mouse_current_position, (Stroke) {
-				MODE_ERASE,
 				s->thick,
 				DEFAULT_BGCOLOR,
 				DEFAULT_SMOOTH_LEASH_SIZE
@@ -439,7 +439,7 @@ void draw_preview(Context* context) {
 	
 	Color c = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? s->color : WHITE;
 	
-	switch (s->mode) {
+	switch (context->mode) {
 	case MODE_DRAW:
 		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && entity.kind == ENTITY_PATH && entity.path.count > 0) {
 			for (size_t j = 0; j < entity.path.count - 1; j++) {
@@ -464,7 +464,6 @@ void draw_preview(Context* context) {
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			draw_line(*last_point, pos, (Stroke) {
-				MODE_LINE,
 				1.0f,
 				WHITE,
 				0
@@ -494,7 +493,6 @@ void draw_preview(Context* context) {
 				rect.y = last_point->y;
 			}
 			draw_rect(rect, (Stroke) {
-				MODE_RECT,
 				1.0f,
 				WHITE,
 				0
@@ -612,7 +610,7 @@ void draw_panel(
 	DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
 	// Show stroke information
 	DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-	show_stroke(PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, &context->s);
+	show_stroke(context, PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 
 	// Messages
 	Vector2 size = MeasureTextEx(global_font, VERSION_NAME, 13.0f, 1.0f);
@@ -718,13 +716,14 @@ int main(void) {
 	
 	// Context and canvas
 	context.s = (Stroke){
-		.mode = MODE_DRAW,
 		.thick = DEFAULT_THICK,
 		.color = GREEN,
 		.smoothness = DEFAULT_SMOOTH_LEASH_SIZE,
 	};
 	
-	Mode saved_mode = context.s.mode;
+	context.mode = MODE_DRAW;
+	
+	Mode saved_mode = context.mode;
 
 	Canvas pages[MAX_PAGES] = {0};
 	context.current_page = 0;
@@ -863,7 +862,7 @@ int main(void) {
 				}
 
 				// Stroke smoothness by Mouse wheel
-				if (IsKeyDown(KEY_S) && context.s.mode == MODE_DRAW) {
+				if (IsKeyDown(KEY_S) && context.mode == MODE_DRAW) {
 					double wheel = GetMouseWheelMove();
 					context.s.smoothness += clamped_increment(context.s.smoothness, wheel, 0, MAX_SMOOTH_LEASH_SIZE);
 					DrawCircleLinesV(context.mouse_current_position, context.s.smoothness, context.s.color);
@@ -873,36 +872,36 @@ int main(void) {
 				
 				// Quick erase
 				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
-				{ saved_mode = context.s.mode;
-				  context.s.mode = MODE_ERASE;
+				{ saved_mode = context.mode;
+				  context.mode = MODE_ERASE;
 				  context.s.thick *= 2;
 			    }
 				if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
-				{ context.s.mode = saved_mode;
+				{ context.mode = saved_mode;
 			      context.s.thick /= 2;
 				}
 
 				// Quick line
 			    if (IsKeyPressed(KEY_LEFT_SHIFT))
-			    { saved_mode = context.s.mode;
-			      context.s.mode = MODE_LINE;
+			    { saved_mode = context.mode;
+			      context.mode = MODE_LINE;
 			    }
-				if (IsKeyReleased(KEY_LEFT_SHIFT)) context.s.mode = saved_mode;
+				if (IsKeyReleased(KEY_LEFT_SHIFT)) context.mode = saved_mode;
 
 				// Modes
-				if (IsKeyPressed(KEY_A)) context.s.mode = MODE_DRAW;
-				if (IsKeyPressed(KEY_L)) context.s.mode = MODE_LINE;
+				if (IsKeyPressed(KEY_A)) context.mode = MODE_DRAW;
+				if (IsKeyPressed(KEY_L)) context.mode = MODE_LINE;
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
 						context.canvas->count = 0;
 						set_status_caption(status_text, &status_timer, "Cleared screen");
 					} else {
-						context.s.mode = MODE_ERASE;
+						context.mode = MODE_ERASE;
 					}
 				}
-				if (IsKeyPressed(KEY_SPACE)) context.s.mode = MODE_TEXT;
-				if (IsKeyPressed(KEY_R))     context.s.mode = MODE_RECT;
-				if (IsKeyPressed(KEY_C))     context.s.mode = MODE_CIRCLE;
+				if (IsKeyPressed(KEY_SPACE)) context.mode = MODE_TEXT;
+				if (IsKeyPressed(KEY_R))     context.mode = MODE_RECT;
+				if (IsKeyPressed(KEY_C))     context.mode = MODE_CIRCLE;
 
 				// Page shortcuts
 				if (IsKeyPressed(KEY_PERIOD))

@@ -113,7 +113,10 @@ bool build_linux_x86_64(bool debug) {
 	cmd_append(&cmd, "-Wall", "-Wextra");
 
 	// Debug
-	if (debug) cmd_append(&cmd, "-DDEBUG");
+	if (debug) {
+		cmd_append(&cmd, "-DDEBUG");
+		cmd_append(&cmd, "-ggdb");
+	}
 	
 	// linking and include
 	cmd_append(&cmd, "-I/usr/local/include", "-lraylib", "-lm");
@@ -133,7 +136,10 @@ bool build_windows_x86_64(bool debug) {
 	cmd_append(&cmd, "-Wall", "-Wextra");
 
 	// debug
-	if (debug) cmd_append(&cmd, "-DDEBUG");
+	if (debug) {
+		cmd_append(&cmd, "-DDEBUG");
+		cmd_append(&cmd, "-ggdb");
+	}
 
 	// linking and include
 	cmd_append(&cmd, "-I/usr/local/include", "-L./lib", "-lraylib", "-lwinmm", "-lgdi32");
