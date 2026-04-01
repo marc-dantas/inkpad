@@ -119,6 +119,8 @@ typedef struct {
 typedef struct {
 	Entity* items;
 	size_t count, capacity;
+	RenderTexture2D cache;
+	bool redraw;
 } Canvas;
 
 typedef struct {
@@ -270,6 +272,7 @@ void draw(Context* context) {
 	Vector2 mouse_current_position = context->mouse_current_position;
 	Vector2 mouse_last_position = context->mouse_last_position;
 	Entity* ent = &context->current_entity;
+	bool* redraw = &context->canvas->redraw;
 
 	bool entity_done = false;
 	
@@ -410,6 +413,7 @@ void draw(Context* context) {
 		break;
 	}
 	if (entity_done) {
+		*redraw = true;
 		da_append(context->canvas, context->current_entity);
 		TraceLog(LOG_INFO, "Added entity #%zu", context->canvas->count);
 		memset(&context->current_entity, 0, sizeof(Entity));
@@ -654,7 +658,11 @@ double clamped_increment(double x, double inc, double min, double max) {
     return ((x+inc) >= min && (x+inc) <= max)? inc : 0.0;
 }
 
-void render_canvas(const Canvas* canvas) {
+// Render canvas into its cache if refresh is needed
+void render_canvas(Canvas* canvas) {
+	if (!canvas->redraw) return;
+	BeginTextureMode(canvas->cache);
+	ClearBackground(BLANK);
 	for (size_t i = 0; i < canvas->count; i++) {
 		Entity entity = canvas->items[i];
 		switch (entity.kind) {
@@ -682,6 +690,8 @@ void render_canvas(const Canvas* canvas) {
 		} break;
 		}
 	}
+	canvas->redraw = false;
+	EndTextureMode();
 }
 
 int main(void) {
@@ -713,6 +723,10 @@ int main(void) {
 	Mode saved_mode = context.mode;
 
 	Canvas pages[MAX_PAGES] = {0};
+	for (size_t i = 0; i < MAX_PAGES; i++) {
+		pages[i] = (Canvas){ .cache = LoadRenderTexture(window_width, window_height), .redraw = false };
+	}
+	
 	context.current_page = 0;
 	context.canvas = &pages[context.current_page];
 
@@ -728,6 +742,9 @@ int main(void) {
 	
 	// Window
 	while (!WindowShouldClose()) {
+
+		render_canvas(context.canvas);
+
 		BeginDrawing();
 			context.mouse_current_position = GetMousePosition();
 			bool is_on_canvas = check_boundingbox(
@@ -741,9 +758,22 @@ int main(void) {
 			if (is_on_canvas) {
 				draw(&context);
 			}
-			ClearBackground(DEFAULT_BGCOLOR);
 
-			render_canvas(context.canvas);
+			// Canvas rendered image drawing
+			ClearBackground(DEFAULT_BGCOLOR);
+			DrawTextureRec(
+				context.canvas->cache.texture,
+				(Rectangle){
+					0, 0,
+					(float)context.canvas->cache.texture.width,
+					(float)-context.canvas->cache.texture.height
+				}, // Flipped rectangle to fix OpenGL's coordinate system
+				(Vector2){ 0, 0 },
+				WHITE
+			);
+			if (context.canvas->redraw) {
+				render_canvas(context.canvas);
+			}
 
 			if (show_panel) draw_panel(
 				&context,
