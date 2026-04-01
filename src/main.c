@@ -658,8 +658,23 @@ double clamped_increment(double x, double inc, double min, double max) {
     return ((x+inc) >= min && (x+inc) <= max)? inc : 0.0;
 }
 
-// Render canvas into its cache if refresh is needed
-void render_canvas(Canvas* canvas) {
+// Render canvas' cache texture on the screen
+void render_canvas(const Canvas* canvas, int x, int y) {
+	Texture2D tex = canvas->cache.texture;
+	DrawTextureRec(
+		tex,
+		(Rectangle){
+			0, 0,
+			(float)tex.width,
+			(float)-tex.height
+		}, // Flipped rectangle to fix OpenGL's coordinate system
+		(Vector2){ x, y },
+		WHITE
+	);
+}
+
+// Redraw the canvas' elements into its cache texture if refresh is needed
+void refresh_canvas(Canvas* canvas) {
 	if (!canvas->redraw) return;
 	BeginTextureMode(canvas->cache);
 	ClearBackground(BLANK);
@@ -743,7 +758,7 @@ int main(void) {
 	// Window
 	while (!WindowShouldClose()) {
 
-		render_canvas(context.canvas);
+		refresh_canvas(context.canvas);
 
 		BeginDrawing();
 			context.mouse_current_position = GetMousePosition();
@@ -761,18 +776,11 @@ int main(void) {
 
 			// Canvas rendered image drawing
 			ClearBackground(DEFAULT_BGCOLOR);
-			DrawTextureRec(
-				context.canvas->cache.texture,
-				(Rectangle){
-					0, 0,
-					(float)context.canvas->cache.texture.width,
-					(float)-context.canvas->cache.texture.height
-				}, // Flipped rectangle to fix OpenGL's coordinate system
-				(Vector2){ 0, 0 },
-				WHITE
-			);
+			render_canvas(context.canvas, 0, 0);
+			
 			if (context.canvas->redraw) {
-				render_canvas(context.canvas);
+				refresh_canvas(context.canvas);
+				render_canvas(context.canvas, 0, 0);
 			}
 
 			if (show_panel) draw_panel(
@@ -910,6 +918,7 @@ int main(void) {
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
 						context.canvas->count = 0;
+						context.canvas->redraw = true;
 						set_status_caption(status_text, &status_timer, "Cleared screen");
 					} else {
 						context.mode = MODE_ERASE;
