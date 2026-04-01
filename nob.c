@@ -110,7 +110,7 @@ bool build_linux_x86_64(bool debug) {
 	cmd_append(&cmd, "gcc", "-o", output, INPUT_FILES);
 	
 	// compiler flags
-	cmd_append(&cmd, "-Wall", "-Wextra");
+	cmd_append(&cmd, "-std=c11", "-Wall", "-Wextra", "-pedantic");
 
 	// Debug
 	if (debug) {
@@ -133,7 +133,7 @@ bool build_windows_x86_64(bool debug) {
 	cmd_append(&cmd, "x86_64-w64-mingw32-gcc-win32", "-o", OUTPUT_DIR"windows-x86_64/inkpad.exe", INPUT_FILES);
 	
 	// compiler flags
-	cmd_append(&cmd, "-Wall", "-Wextra");
+	cmd_append(&cmd, "-std=c11", "-Wall", "-Wextra", "-pedantic");
 
 	// debug
 	if (debug) {
@@ -253,6 +253,15 @@ int main(int argc, char** argv) {
 		if (!collect_assets(ASSETS_INPUT_DIR, &assets)) return 1;
 		if (!pack_assets(assets, ASSETS_OUTPUT_DIR)) return 1;
 		return 0;
+	}
+
+	for (size_t i = 0; i < ARRAY_LEN(platforms); i++) {
+		Platform plat = platforms[i];
+		if (strcmp(argv[1], plat.name) == 0) {
+			nob_log(NOB_INFO, "Building Inkpad for %s", plat.name);
+			if (!(*plat.build)(true)) return 1;
+			return 0;
+		}
 	}
 	
 	if (strcmp(argv[1], "help") == 0) {

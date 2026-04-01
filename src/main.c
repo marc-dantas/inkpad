@@ -11,8 +11,8 @@
 #include "assets.c"
 
 // General constants
-#define DEFAULT_BGCOLOR    (Color){18, 18, 18, 255}
-#define PANEL_BGCOLOR      (Color){18, 18, 18, 130}
+#define DEFAULT_BGCOLOR    (Color){ 15, 15, 15, 255 }
+#define PANEL_BGCOLOR      (Color){ 18, 18, 18, 130 }
 #define PANEL_PADDING      15         // gap between elements inside the panel (pixels)
 #define PANEL_HEIGHT       90         // height of the panel (pixels)
 #define MAX_PAGES          5          // number of pages
@@ -60,7 +60,7 @@
 #define da(T) \
 	T *items; \
 	size_t count; \
-	size_t capacity;
+	size_t capacity
 
 // Stroke constants
 #define DEFAULT_THICK 8.0f
@@ -115,18 +115,6 @@ typedef struct {
 		struct { Vector2 position; char content[MAX_TEXT_SIZE]; } text;
 	};
 } Entity;
-
-void sprintentity(char* buf, Entity ent) {
-	switch (ent.kind) {
-	case ENTITY_TEXT: buf = "ENTITY_TEXT"; break;
-	case ENTITY_CIRCLE: buf = "ENTITY_CIRCLE"; break;
-	case ENTITY_RECT: buf = "ENTITY_RECT"; break;
-	case ENTITY_LINE: buf = "ENTITY_LINE"; break;
-	case ENTITY_PATH: buf = "ENTITY_PATH"; break;
-	default: buf = "?"; break;
-	}
-	return;
-}
 
 typedef struct {
 	Entity* items;
@@ -188,36 +176,36 @@ void show_stroke(Context* context, unsigned int x, unsigned int y) {
 	Vector2 texpos = (Vector2) { x + w + 5, y+10 };
 	char* text = "Unknown";
 	switch (context->mode) {
-	case MODE_DRAW:
+	case MODE_DRAW: {
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		text = "Draw";
-		break;
-	case MODE_LINE:
+	} break;
+	case MODE_LINE: {
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 		text = "Line";
-		break;
-	case MODE_ERASE:
+	} break;
+	case MODE_ERASE: {
 		DrawCircleLines(x + w/2, y + h/2, s->thick/2, s->color);
 		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 		text = "Erase";
-		break;
-	case MODE_TEXT:
+	} break;
+	case MODE_TEXT: {
 		int text_size = s->thick*2;
 		Vector2 size = MeasureTextEx(global_font, "Aa", text_size, 1.0f);
 		DrawRectangleLines(x, y, w, h, s->color);
 		DrawTextEx(global_font, "Aa", (Vector2) { x + w/2 - size.x/2, y + h/2 - size.y/2 }, text_size, 1.0f, s->color);
 		text = "Text";
-		break;
-	case MODE_RECT:
+	} break;
+	case MODE_RECT: {
 		DrawRectangle(x + w/2 - s->thick/2, y + h/2 - s->thick/2, s->thick, s->thick, s->color);
 		DrawRectangleLines(x + w/2 - s->thick/2 - 4, y + h/2 - s->thick/2 - 4, s->thick + 8, s->thick + 8, s->color);
 		text = "Rect";
-		break;
-	case MODE_CIRCLE:
+	} break;
+	case MODE_CIRCLE: {
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		text = "Circle";
-		break;
+	} break;
 	}
 	DrawTextEx(global_font, text, texpos, 30.0f, 1.0f, WHITE);
 }
@@ -378,7 +366,6 @@ void draw(Context* context) {
 				break;
 			}
 			if (IsKeyPressed(KEY_ENTER)) {
-				int text_size = s->thick*3;
 				ent->text.position = *last_point;
 				context->typing = false;
 				entity_done = true;
@@ -754,8 +741,7 @@ int main(void) {
 			if (is_on_canvas) {
 				draw(&context);
 			}
-			ClearBackground((Color){ 40, 40, 40, 255 });
-			
+			ClearBackground(DEFAULT_BGCOLOR);
 
 			render_canvas(context.canvas);
 
@@ -777,7 +763,7 @@ int main(void) {
 
 			// Page number
 			char page_number_text[16];
-			sprintf(page_number_text, "%ld/%d", context.current_page+1, MAX_PAGES);
+			sprintf(page_number_text, "%zu/%d", context.current_page+1, MAX_PAGES);
 			int height = MeasureTextEx(global_font, page_number_text, 25.0f, 1.0f).y;
 			DrawTextEx(
 				global_font,
