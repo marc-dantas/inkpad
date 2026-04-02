@@ -119,10 +119,13 @@ typedef struct {
 	};
 } Entity;
 
-void entity_free(Entity entity) {
-	switch (entity.kind) {
+void entity_free(Entity* entity) {
+	switch (entity->kind) {
 	case ENTITY_PATH: {
-		if (entity.path.items) free(entity.path.items);
+		if (entity->path.items) free(entity->path.items);
+		entity->path.items = NULL;
+		entity->path.count = 0;
+		entity->path.capacity = 0;
 	} break;
 	default:
 		break;
@@ -141,30 +144,40 @@ typedef struct {
 void canvas_add_entity(Canvas* canvas, Entity entity) {
 	History* history = &canvas->history;
 
-	size_t entity_index = canvas->count;
-	da_append(canvas, entity);
-
-	// TODO: Properly free the entities when they get unreachable like this since the branch should be cut
-	// This is a memory leak
 	if (history->top < history->count) {
+		for (size_t i = history->top; i < history->count; i++) {
+			Action action = history->items[i];
+			if (action.kind == ACTION_ADD_ENTITY) {
+				TraceLog(LOG_INFO, "Deallocating unreachable entity #%zu", action.entity_index+1);
+				entity_free(&canvas->items[action.entity_index]);
+			}
+		}
 		history->count = history->top;
 	}
 
+	size_t entity_index = canvas->count;
+	da_append(canvas, entity);
+	
 	da_append(history, ((Action) {
 		.kind = ACTION_ADD_ENTITY,
 		.entity_index = entity_index,
 	}));
 	history->top++;
-		
+	
 	canvas->redraw = true;
 }
 
 void canvas_clear(Canvas* canvas) {
 	History* history = &canvas->history;
 
-	// TODO: Properly free the entities when they get unreachable like this since the branch should be cut
-	// This is a memory leak
 	if (history->top < history->count) {
+		for (size_t i = history->top; i < history->count; i++) {
+			Action action = history->items[i];
+			if (action.kind == ACTION_ADD_ENTITY) {
+				TraceLog(LOG_INFO, "Deallocating unreachable entity #%zu", action.entity_index+1);
+				entity_free(&canvas->items[action.entity_index]);
+			}
+		}
 		history->count = history->top;
 	}
 	
@@ -846,8 +859,8 @@ int main(void) {
 		refresh_canvas(context.canvas);
 
 		BeginDrawing();
-			TraceLog(LOG_INFO, "History has %zu actions and its top is at %zu", context.canvas->history.count, context.canvas->history.top);
-			TraceLog(LOG_INFO, "Canvas has count = %zu and start = %zu", context.canvas->count, context.canvas->start);
+			// TraceLog(LOG_INFO, "History has %zu actions and its top is at %zu", context.canvas->history.count, context.canvas->history.top);
+			// TraceLog(LOG_INFO, "Canvas has count = %zu and start = %zu", context.canvas->count, context.canvas->start);
 		
 			context.mouse_current_position = GetMousePosition();
 			bool is_on_canvas = check_boundingbox(
@@ -1036,4 +1049,3 @@ int main(void) {
 	CloseWindow();
 	return 0;
 }
-
