@@ -81,20 +81,23 @@ typedef struct {
 	int smoothness; // value in pixels of the radius of smooth leash
 } Stroke;
 
+typedef enum {
+	ACTION_ADD_ENTITY = 0,
+	ACTION_CLEAR
+} ActionKind;
+
 typedef struct {
-	da(Image);
-	size_t cursor;
+	ActionKind kind;
+	union {
+		size_t canvas_start;
+		size_t entity_index;
+	};
+} Action;
+
+typedef struct {
+	da(Action);
+	size_t top;
 } History;
-
-typedef struct {
-	da(History);
-} HistoryList;
-
-void History_push(History* target, RenderTexture2D snapshot) {
-	Image img = LoadImageFromTexture(snapshot.texture);
-	ImageFlipVertical(&img); // Flips the texture so it doesn't look upside down bc of opengl shit
-	da_append(target, img);
-}
 
 typedef enum {
 	ENTITY_PATH = 0,
@@ -108,7 +111,7 @@ typedef struct {
 	EntityKind kind;
 	Stroke stroke;
 	union {
-		struct { Vector2* items; size_t count, capacity; } path;
+		struct { da(Vector2); } path;
 		struct { Vector2 start; Vector2 end; } line;
 		struct { Rectangle bb; } rect;
 		struct { Vector2 center; size_t radius; } circle;
@@ -116,12 +119,97 @@ typedef struct {
 	};
 } Entity;
 
+void entity_free(Entity entity) {
+	switch (entity.kind) {
+	case ENTITY_PATH: {
+		if (entity.path.items) free(entity.path.items);
+	} break;
+	default:
+		break;
+	}
+}
+
 typedef struct {
-	Entity* items;
-	size_t count, capacity;
+	da(Entity);
+	size_t start; // Index to when to start iterating the entities
+	
+	History history;
 	RenderTexture2D cache;
 	bool redraw;
 } Canvas;
+
+void canvas_add_entity(Canvas* canvas, Entity entity) {
+	History* history = &canvas->history;
+
+	size_t entity_index = canvas->count;
+	da_append(canvas, entity);
+
+	// TODO: Properly free the entities when they get unreachable like this since the branch should be cut
+	// This is a memory leak
+	if (history->top < history->count) {
+		history->count = history->top;
+	}
+
+	da_append(history, ((Action) {
+		.kind = ACTION_ADD_ENTITY,
+		.entity_index = entity_index,
+	}));
+	history->top++;
+		
+	canvas->redraw = true;
+}
+
+void canvas_clear(Canvas* canvas) {
+	History* history = &canvas->history;
+
+	// TODO: Properly free the entities when they get unreachable like this since the branch should be cut
+	// This is a memory leak
+	if (history->top < history->count) {
+		history->count = history->top;
+	}
+	
+	da_append(history, ((Action) {
+		.kind = ACTION_CLEAR,
+		.canvas_start = canvas->start
+	}));
+	history->top++;
+	
+	canvas->start = canvas->count;
+	canvas->redraw = true;
+}
+
+bool canvas_history_undo(Canvas* canvas) {
+	History* history = &canvas->history;
+	if (history->top <= 0) return false;
+	Action action = history->items[--history->top];
+	switch (action.kind) {
+	case ACTION_ADD_ENTITY: {
+		canvas->count--;
+	} break;
+	case ACTION_CLEAR: {
+		canvas->start = action.canvas_start;
+	} break;
+	}
+	canvas->redraw = true;
+	return true;
+}
+
+bool canvas_history_redo(Canvas* canvas) {
+	History* history = &canvas->history;
+	if (history->top >= history->count) return false;
+	Action action = history->items[history->top++];
+	TraceLog(LOG_INFO, "Redoing action of kind %d", action.kind);
+	switch (action.kind) {
+	case ACTION_ADD_ENTITY: {
+		canvas->count++;
+	} break;
+	case ACTION_CLEAR: {
+		canvas->start = canvas->count;
+	} break;
+	}
+	canvas->redraw = true;
+	return true;
+}
 
 typedef struct {
 	bool cancel;                       // Flag to cancel the current stroke action being done
@@ -132,7 +220,6 @@ typedef struct {
 	Entity current_entity;             // Current entity to be saved between frames
 	Stroke s;                          // Current stroke state
 	Vector2 last_point;                // Used to save the previous point clicked while holding LMB
-	HistoryList history;               // List of all histories across the pages
 	Vector2 mouse_last_position, mouse_current_position; 
 } Context;
 
@@ -272,7 +359,6 @@ void draw(Context* context) {
 	Vector2 mouse_current_position = context->mouse_current_position;
 	Vector2 mouse_last_position = context->mouse_last_position;
 	Entity* ent = &context->current_entity;
-	bool* redraw = &context->canvas->redraw;
 
 	bool entity_done = false;
 	
@@ -413,8 +499,7 @@ void draw(Context* context) {
 		break;
 	}
 	if (entity_done) {
-		*redraw = true;
-		da_append(context->canvas, context->current_entity);
+		canvas_add_entity(context->canvas, context->current_entity);
 		TraceLog(LOG_INFO, "Added entity #%zu", context->canvas->count);
 		memset(&context->current_entity, 0, sizeof(Entity));
 	}
@@ -678,7 +763,7 @@ void refresh_canvas(Canvas* canvas) {
 	if (!canvas->redraw) return;
 	BeginTextureMode(canvas->cache);
 	ClearBackground(BLANK);
-	for (size_t i = 0; i < canvas->count; i++) {
+	for (size_t i = canvas->start; i < canvas->count; i++) {
 		Entity entity = canvas->items[i];
 		switch (entity.kind) {
 		case ENTITY_PATH: {
@@ -701,6 +786,7 @@ void refresh_canvas(Canvas* canvas) {
 				entity.text.position.x,
 				entity.text.position.y - entity.stroke.thick
 			};
+			DrawTextEx(global_font, entity.text.content, text_pos, entity.stroke.thick * 2, 1.0f, entity.stroke.color);
 			DrawTextEx(global_font, entity.text.content, text_pos, entity.stroke.thick * 2, 1.0f, entity.stroke.color);
 		} break;
 		}
@@ -757,10 +843,12 @@ int main(void) {
 	
 	// Window
 	while (!WindowShouldClose()) {
-
 		refresh_canvas(context.canvas);
 
 		BeginDrawing();
+			TraceLog(LOG_INFO, "History has %zu actions and its top is at %zu", context.canvas->history.count, context.canvas->history.top);
+			TraceLog(LOG_INFO, "Canvas has count = %zu and start = %zu", context.canvas->count, context.canvas->start);
+		
 			context.mouse_current_position = GetMousePosition();
 			bool is_on_canvas = check_boundingbox(
 				(Rectangle) {
@@ -841,21 +929,14 @@ int main(void) {
 
 				// Undo
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
-					// History* h = &context.history.items[context.current_page];
-					// if (h->cursor > 0) {
-					// 	if (h->cursor == h->count) History_push(h, *context.canvas); // Save state before undo to be able to redo
-					// 	clear_and_draw_texture(*context.canvas, LoadTextureFromImage(h->items[--h->cursor]));
-					// 	set_status_caption(status_text, &status_timer, "Undid action");
-					// }
+					if (canvas_history_undo(context.canvas))
+						set_status_caption(status_text, &status_timer, "Undid action");
 				}
 
 				// Redo
 				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y)) {
-					// History* h = &context.history.items[context.current_page];
-					// if (h->cursor + 1 < h->count) {
-					// 	clear_and_draw_texture(*context.canvas, LoadTextureFromImage(h->items[++h->cursor]));
-					// 	set_status_caption(status_text, &status_timer, "Redid action");
-					// }
+					if (canvas_history_redo(context.canvas))
+						set_status_caption(status_text, &status_timer, "Redid action");
 				}
 				
 				// Change Thickness by Mouse wheel (LEFT ALT)
@@ -917,8 +998,7 @@ int main(void) {
 				if (IsKeyPressed(KEY_L)) context.mode = MODE_LINE;
 				if (IsKeyPressed(KEY_X)) {
 					if (IsKeyDown(KEY_LEFT_CONTROL)) {
-						context.canvas->count = 0;
-						context.canvas->redraw = true;
+						canvas_clear(context.canvas);
 						set_status_caption(status_text, &status_timer, "Cleared screen");
 					} else {
 						context.mode = MODE_ERASE;
