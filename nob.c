@@ -6,11 +6,18 @@
 
 Cmd cmd = {0};
 
-#define OUTPUT_DIR "bin/"
-#define RELEASE_DIR "dist/"
-#define ASSETS_INPUT_DIR "assets/"
+#define OUTPUT_DIR        "bin/"
+#define RELEASE_DIR       "dist/"
+#define ASSETS_INPUT_DIR  "assets/"
 #define ASSETS_OUTPUT_DIR "src/"
-#define INPUT_FILES "src/main.c"
+#define INPUT_DIR         "src/"
+#define INPUT_FILES       INPUT_DIR"main.c"
+
+#define CFLAGS     "-std=c11", "-Wall", "-Wextra", "-pedantic"
+#define DEBUGFLAGS "-DDEBUG", "-ggdb"
+
+#define LINUX_CC   "clang"
+#define WINDOWS_CC "x86_64-w64-mingw32-gcc-win32"
 
 //// Asset packer/generator ////
 
@@ -107,19 +114,21 @@ bool build_linux_x86_64(bool debug) {
 	if (!mkdir_if_not_exists(OUTPUT_DIR"linux-x86_64")) return false;
 
 	// basic compilation
-	cmd_append(&cmd, "gcc", "-o", output, INPUT_FILES);
-	
-	// compiler flags
-	cmd_append(&cmd, "-std=c11", "-Wall", "-Wextra", "-pedantic");
+	cmd_append(&cmd, LINUX_CC, "-o", output, INPUT_FILES);
 
-	// Debug
-	if (debug) {
-		cmd_append(&cmd, "-DDEBUG");
-		cmd_append(&cmd, "-ggdb");
-	}
+	// compiler flags
+	cmd_append(&cmd, CFLAGS);
 	
-	// linking and include
-	cmd_append(&cmd, "-I/usr/local/include", "-lraylib", "-lm");
+	// Debug
+	if (debug) cmd_append(&cmd, DEBUGFLAGS);
+
+	// Libraries
+	cmd_append(&cmd, "-lraylib", "-lm");
+
+	// Include
+	cmd_append(&cmd, "-I/usr/local/include");
+	cmd_append(&cmd, "-I"INPUT_DIR);
+
 
 	return cmd_run(&cmd);
 }
@@ -130,23 +139,22 @@ bool build_windows_x86_64(bool debug) {
 	
 	// basic compilation
 	
-	cmd_append(&cmd, "x86_64-w64-mingw32-gcc-win32", "-o", OUTPUT_DIR"windows-x86_64/inkpad.exe", INPUT_FILES);
-	
+	cmd_append(&cmd, WINDOWS_CC, "-o", OUTPUT_DIR"windows-x86_64/inkpad.exe", INPUT_FILES);
+
 	// compiler flags
-	cmd_append(&cmd, "-std=c11", "-Wall", "-Wextra", "-pedantic");
-
-	// debug
-	if (debug) {
-		cmd_append(&cmd, "-DDEBUG");
-		cmd_append(&cmd, "-ggdb");
-	}
-
-	// linking and include
-	cmd_append(&cmd, "-I/usr/local/include", "-L./lib", "-lraylib", "-lwinmm", "-lgdi32");
-
-	if (!cmd_run(&cmd)) return false;
+	cmd_append(&cmd, CFLAGS);
 	
-	return true;
+	// Debug
+	if (debug) cmd_append(&cmd, DEBUGFLAGS);
+
+	// Libraries
+	cmd_append(&cmd, "-L./lib", "-lraylib", "-lwinmm", "-lgdi32");
+
+	// Include
+	cmd_append(&cmd, "-I/usr/local/include");
+	cmd_append(&cmd, "-I"INPUT_DIR);
+
+	return cmd_run(&cmd);
 }
 
 typedef struct {

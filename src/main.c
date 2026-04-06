@@ -6,36 +6,16 @@
 
 #include "raylib.h"
 #include "raymath.h"
-
-// Assets
 #include "assets.c"
+#include "inkpad.h"
 
-// General constants
-#define DEFAULT_BGCOLOR    (Color){ 15, 15, 15, 255 }
-#define PANEL_BGCOLOR      (Color){ 18, 18, 18, 130 }
-#define PANEL_PADDING      15         // gap between elements inside the panel (pixels)
-#define PANEL_HEIGHT       90         // height of the panel (pixels)
-#define MAX_PAGES          5          // number of pages
-#define DEFAULT_SLEEP_TIME 240        // time (in frames) to show a caption in status
-#define CANCEL_KEY         KEY_ESCAPE // key to press to cancel action
-
-#define DEFAULT_SMOOTH_LEASH_SIZE 4  // how long (delayed) is the pen in draw stroke mode (in pixels).
-                                     // In other words, how much you have to drag the mouse to start drawing
-#define MAX_SMOOTH_LEASH_SIZE    30
-#define MAX_TEXT_SIZE            256
-
-// System constants
 #ifdef _WIN32
 #    define INKPAD_HOME getenv("USERPROFILE")
 #else
 #    define INKPAD_HOME getenv("HOME")
 #endif
 
-// Version
-#define VERSION "0.8 DEV"
-#define VERSION_NAME "Inkpad "VERSION
-
-// Misc
+// Dynamic Array (stole from nob: https://github.com/tsoding/nob.h)
 #define da_reserve(da, expected_capacity)                                              \
     do {                                                                               \
         if ((expected_capacity) > (da)->capacity) {                                    \
@@ -57,68 +37,6 @@
         (da)->items[(da)->count++] = (item); \
     } while (0)
 
-#define da(T) \
-	T *items; \
-	size_t count; \
-	size_t capacity
-
-// Stroke constants
-#define DEFAULT_THICK 8.0f
-
-typedef enum {
-	MODE_ERASE = 0,
-	
-	MODE_DRAW,
-	MODE_LINE,
-	MODE_RECT,
-	MODE_TEXT,
-	MODE_CIRCLE,
-} Mode;
-
-typedef struct {
-	float thick;
-	Color color;
-	int smoothness; // value in pixels of the radius of smooth leash
-} Stroke;
-
-typedef enum {
-	ACTION_ADD_ENTITY = 0,
-	ACTION_CLEAR
-} ActionKind;
-
-typedef struct {
-	ActionKind kind;
-	union {
-		size_t canvas_start;
-		size_t entity_index;
-	};
-} Action;
-
-typedef struct {
-	da(Action);
-	size_t top;
-} History;
-
-typedef enum {
-	ENTITY_PATH = 0,
-	ENTITY_LINE,
-	ENTITY_RECT,
-	ENTITY_CIRCLE,
-	ENTITY_TEXT
-} EntityKind;
-
-typedef struct {
-	EntityKind kind;
-	Stroke stroke;
-	union {
-		struct { da(Vector2); } path;
-		struct { Vector2 start; Vector2 end; } line;
-		struct { Rectangle bb; } rect;
-		struct { Vector2 center; size_t radius; } circle;
-		struct { Vector2 position; char content[MAX_TEXT_SIZE]; } text;
-	};
-} Entity;
-
 void entity_free(Entity* entity) {
 	switch (entity->kind) {
 	case ENTITY_PATH: {
@@ -131,15 +49,6 @@ void entity_free(Entity* entity) {
 		break;
 	}
 }
-
-typedef struct {
-	da(Entity);
-	size_t start; // Index to when to start iterating the entities
-	
-	History history;
-	RenderTexture2D cache;
-	bool redraw;
-} Canvas;
 
 void canvas_add_entity(Canvas* canvas, Entity entity) {
 	History* history = &canvas->history;
@@ -211,7 +120,6 @@ bool canvas_history_redo(Canvas* canvas) {
 	History* history = &canvas->history;
 	if (history->top >= history->count) return false;
 	Action action = history->items[history->top++];
-	TraceLog(LOG_INFO, "Redoing action of kind %d", action.kind);
 	switch (action.kind) {
 	case ACTION_ADD_ENTITY: {
 		canvas->count++;
@@ -224,18 +132,6 @@ bool canvas_history_redo(Canvas* canvas) {
 	return true;
 }
 
-typedef struct {
-	bool cancel;                       // Flag to cancel the current stroke action being done
-	bool typing;                       // When in text mode during typing, this flag is true
-	size_t current_page;               // Index of the current page selected
-	Mode mode;                         // Current mode
-	Canvas* canvas;                    // Current canvas object
-	Entity current_entity;             // Current entity to be saved between frames
-	Stroke s;                          // Current stroke state
-	Vector2 last_point;                // Used to save the previous point clicked while holding LMB
-	Vector2 mouse_last_position, mouse_current_position; 
-} Context;
-
 // I wish C had operator overloading...
 bool color_eq(Color a, Color b) {
 	return (a.r==b.r &&
@@ -244,10 +140,7 @@ bool color_eq(Color a, Color b) {
 			a.a==b.a);
 }
 
-// Global context and assets
 static Font global_font;
-
-static Context context = {0};
 
 void draw_message(unsigned int x, unsigned int y, const char* text) {
 	DrawText(text, x, y, 25, WHITE);
@@ -800,7 +693,6 @@ void refresh_canvas(Canvas* canvas) {
 				entity.text.position.y - entity.stroke.thick
 			};
 			DrawTextEx(global_font, entity.text.content, text_pos, entity.stroke.thick * 2, 1.0f, entity.stroke.color);
-			DrawTextEx(global_font, entity.text.content, text_pos, entity.stroke.thick * 2, 1.0f, entity.stroke.color);
 		} break;
 		}
 	}
@@ -809,6 +701,10 @@ void refresh_canvas(Canvas* canvas) {
 }
 
 int main(void) {
+
+	// Global context
+	static Context context = {0};	
+
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
 	
 	// Initialization
@@ -819,9 +715,14 @@ int main(void) {
 
 	size_t window_width = GetScreenWidth();
 	size_t window_height = GetScreenHeight();
+
+#ifdef DEBUG
 	TraceLog(LOG_INFO, "Window Width: %zu", window_width);
+	TraceLog(LOG_INFO, "sizeof(Entity) = %zu", sizeof(Entity));
+	TraceLog(LOG_INFO, "sizeof(Context) = %zu", sizeof(Context));
 	TraceLog(LOG_INFO, "Window Height: %zu", window_height);
-	
+#endif
+
 	// Loading assets and configuration
 	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 100, NULL, 0);;;;;;
 	
@@ -1045,7 +946,6 @@ int main(void) {
 		context.mouse_last_position = context.mouse_current_position;
 	}
 
-	// UnloadRenderTexture(*context.canvas);
 	CloseWindow();
 	return 0;
 }
