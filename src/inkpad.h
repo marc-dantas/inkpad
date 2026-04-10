@@ -13,7 +13,7 @@
 #define DEFAULT_SMOOTH_LEASH_SIZE 4          // How long (delayed) is the pen in draw stroke mode (in pixels).
                                              // In other words, how much you have to drag the mouse to start drawing
 #define MAX_SMOOTH_LEASH_SIZE     30         // Maximum smooth level to be applied
-#define MAX_TEXT_SIZE             256        // Maximum text buffer size (in bytes) in Text mode
+#define MAX_TEXT_SIZE             128        // Maximum text buffer size (in bytes) in Text mode
 
 // Version
 #define VERSION "0.8 DEV"
@@ -99,14 +99,20 @@ typedef struct {
 //// Global Context ////
 
 typedef struct {
-	bool    cancel;         // Flag to cancel the current stroke action being done
-	bool    typing;         // When in text mode during typing, this flag is true
-	size_t  current_page;   // Index of the current page selected
-	Mode    mode;           // Current mode
-	Canvas* canvas;         // Current canvas object
-	Entity  current_entity; // Current entity to be saved between frames
-	Stroke  s;              // Current stroke state
-	Vector2 last_point;     // Used to save the previous point clicked while holding LMB
+	bool    cancel;                        // Flag to cancel the current stroke action being done
+	bool    typing;                        // When in text mode during typing, this flag is true
+	bool    show_panel;                    // Show panel (toggle w/ F11)
+	size_t  timer;                         // General-purpose timer
+	size_t  current_page;                  // Index of the current page selected
+	char    status_caption[MAX_TEXT_SIZE]; // Status message/caption
+	Mode    last_mode;                     // Last mode
+	Mode    mode;                          // Current mode
+	Canvas* canvas;                        // Current canvas object
+	Entity  current_entity;                // Current entity to be saved between frames
+	Stroke  s;                             // Current stroke state
+	Vector2 last_point;                    // Used to save the previous point clicked while holding LMB
+	Canvas* pages;                         // Pages pointer
+	size_t  n_pages;                       // Number of pages
 	Vector2 mouse_last_position, mouse_current_position; // Auto-describing
 } Context;
 

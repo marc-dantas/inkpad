@@ -37,7 +37,12 @@
         (da)->items[(da)->count++] = (item); \
     } while (0)
 
-void entity_free(Entity* entity) {
+
+double clamped_increment(double x, double inc, double min, double max) {
+    return ((x+inc) >= min && (x+inc) <= max)? inc : 0.0;
+}
+
+void inkpad_entity_free(Entity* entity) {
 	switch (entity->kind) {
 	case ENTITY_PATH: {
 		if (entity->path.items) free(entity->path.items);
@@ -50,7 +55,7 @@ void entity_free(Entity* entity) {
 	}
 }
 
-void canvas_add_entity(Canvas* canvas, Entity entity) {
+void inkpad_canvas_add_entity(Canvas* canvas, Entity entity) {
 	History* history = &canvas->history;
 
 	if (history->top < history->count) {
@@ -58,7 +63,7 @@ void canvas_add_entity(Canvas* canvas, Entity entity) {
 			Action action = history->items[i];
 			if (action.kind == ACTION_ADD_ENTITY) {
 				TraceLog(LOG_INFO, "Deallocating unreachable entity #%zu", action.entity_index+1);
-				entity_free(&canvas->items[action.entity_index]);
+				inkpad_entity_free(&canvas->items[action.entity_index]);
 			}
 		}
 		history->count = history->top;
@@ -76,7 +81,7 @@ void canvas_add_entity(Canvas* canvas, Entity entity) {
 	canvas->redraw = true;
 }
 
-void canvas_clear(Canvas* canvas) {
+void inkpad_canvas_clear(Canvas* canvas) {
 	History* history = &canvas->history;
 
 	if (history->top < history->count) {
@@ -84,7 +89,7 @@ void canvas_clear(Canvas* canvas) {
 			Action action = history->items[i];
 			if (action.kind == ACTION_ADD_ENTITY) {
 				TraceLog(LOG_INFO, "Deallocating unreachable entity #%zu", action.entity_index+1);
-				entity_free(&canvas->items[action.entity_index]);
+				inkpad_entity_free(&canvas->items[action.entity_index]);
 			}
 		}
 		history->count = history->top;
@@ -100,7 +105,7 @@ void canvas_clear(Canvas* canvas) {
 	canvas->redraw = true;
 }
 
-bool canvas_history_undo(Canvas* canvas) {
+bool inkpad_canvas_history_undo(Canvas* canvas) {
 	History* history = &canvas->history;
 	if (history->top <= 0) return false;
 	Action action = history->items[--history->top];
@@ -116,7 +121,7 @@ bool canvas_history_undo(Canvas* canvas) {
 	return true;
 }
 
-bool canvas_history_redo(Canvas* canvas) {
+bool inkpad_canvas_history_redo(Canvas* canvas) {
 	History* history = &canvas->history;
 	if (history->top >= history->count) return false;
 	Action action = history->items[history->top++];
@@ -133,7 +138,7 @@ bool canvas_history_redo(Canvas* canvas) {
 }
 
 // I wish C had operator overloading...
-bool color_eq(Color a, Color b) {
+bool inkpad_color_eq(Color a, Color b) {
 	return (a.r==b.r &&
 			a.g==b.g &&
 			a.b==b.b &&
@@ -142,11 +147,11 @@ bool color_eq(Color a, Color b) {
 
 static Font global_font;
 
-void draw_message(unsigned int x, unsigned int y, const char* text) {
+void inkpad_draw_message(unsigned int x, unsigned int y, const char* text) {
 	DrawText(text, x, y, 25, WHITE);
 }
 
-void show_stroke_tooltip(Vector2 position, const char* text) {
+void inkpad_show_stroke_tooltip(Vector2 position, const char* text) {
 	Vector2 text_size = MeasureTextEx(global_font, text, 17.0f, 1.0f);
 	int pad = 12;
 	Rectangle frame = (Rectangle){
@@ -163,7 +168,7 @@ void show_stroke_tooltip(Vector2 position, const char* text) {
 	DrawTextEx(global_font, text, text_position, 17.0f, 1.0f, GRAY);
 }
 
-void show_stroke(Context* context, unsigned int x, unsigned int y) {
+void inkpad_show_stroke(Context* context, unsigned int x, unsigned int y) {
 	int w = 50;
 	int h = 50;
 	Stroke* s = &context->s;
@@ -205,7 +210,7 @@ void show_stroke(Context* context, unsigned int x, unsigned int y) {
 	DrawTextEx(global_font, text, texpos, 30.0f, 1.0f, WHITE);
 }
 
-void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, bool selected, Color color) {
+void inkpad_draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, bool selected, Color color) {
 	Rectangle rec = (Rectangle){
 		x, y, 50, 50
 	};
@@ -219,7 +224,7 @@ void draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, b
 	}
 }
 
-void draw_page_option(Rectangle* boundingbox, bool selected, int number, unsigned int x, unsigned int y) {
+void inkpad_draw_page_option(Rectangle* boundingbox, bool selected, int number, unsigned int x, unsigned int y) {
 	if (selected) DrawRectangle(x, y, 50, 50, (Color) { 10, 230, 10, 255 });
 	DrawRectangleLines(x-1, y-1, 52, 52, WHITE);
 	char text[2];
@@ -238,9 +243,7 @@ bool check_boundingbox(Rectangle bb, Vector2 pos) {
            (pos.y <= bb.y + bb.height);
 }
 
-// Modes //
-
-void draw_path(Vector2 start, Vector2 end, Stroke s) {
+void inkpad_draw_path(Vector2 start, Vector2 end, Stroke s) {
 	float thick = s.thick;
 	Color color = s.color;
 	DrawCircleV(start, thick/2, color);
@@ -248,18 +251,18 @@ void draw_path(Vector2 start, Vector2 end, Stroke s) {
 	DrawCircleV(end, thick/2, color);
 }
 
-void draw_line(Vector2 start, Vector2 end, Stroke s) {
+void inkpad_draw_line(Vector2 start, Vector2 end, Stroke s) {
 	DrawCircleV(start, s.thick/2, s.color);
 	DrawLineEx(start, end, s.thick, s.color);
 	DrawCircleV(end, s.thick/2, s.color);
 }
 
-void draw_rect(Rectangle rect, Stroke s) {
+void inkpad_draw_rect(Rectangle rect, Stroke s) {
 	DrawRectangleRoundedLinesEx(rect, 0.01f, 15, s.thick, s.color);
 }
 
 // Main draw function that handles when you click LMB
-void draw(Context* context) {
+void inkpad_draw(Context* context) {
 	Stroke* s = &context->s;
 	Vector2* last_point = &context->last_point;
 	Vector2 mouse_current_position = context->mouse_current_position;
@@ -377,7 +380,7 @@ void draw(Context* context) {
 		break;
 	case MODE_ERASE:
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_path(mouse_last_position, mouse_current_position, (Stroke) {
+			inkpad_draw_path(mouse_last_position, mouse_current_position, (Stroke) {
 				s->thick,
 				DEFAULT_BGCOLOR,
 				DEFAULT_SMOOTH_LEASH_SIZE
@@ -405,14 +408,14 @@ void draw(Context* context) {
 		break;
 	}
 	if (entity_done) {
-		canvas_add_entity(context->canvas, context->current_entity);
+		inkpad_canvas_add_entity(context->canvas, context->current_entity);
 		TraceLog(LOG_INFO, "Added entity #%zu", context->canvas->count);
 		memset(&context->current_entity, 0, sizeof(Entity));
 	}
 }
 
 // Function to handle the drawing of the stroke before you press LMB (preview)
-void draw_preview(Context* context) {
+void inkpad_draw_preview(Context* context) {
 	Vector2 pos = context->mouse_current_position;
 	Vector2* last_point = &context->last_point;
 	Stroke* s = &context->s;
@@ -425,7 +428,7 @@ void draw_preview(Context* context) {
 	case MODE_DRAW:
 		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && entity.kind == ENTITY_PATH && entity.path.count > 0) {
 			for (size_t j = 0; j < entity.path.count - 1; j++) {
-				draw_path(entity.path.items[j], entity.path.items[j+1], entity.stroke);
+				inkpad_draw_path(entity.path.items[j], entity.path.items[j+1], entity.stroke);
 			}
 		}
 		if (s->smoothness > 0) {
@@ -445,7 +448,7 @@ void draw_preview(Context* context) {
 		DrawLineEx((Vector2) { pos.x - s->thick/2, pos.y }, (Vector2) { pos.x + s->thick/2, pos.y }, 1.0f, c);
 		DrawLineEx((Vector2) { pos.x, pos.y - s->thick/2 }, (Vector2) { pos.x, pos.y + s->thick/2 }, 1.0f, c);
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			draw_line(*last_point, pos, (Stroke) {
+			inkpad_draw_line(*last_point, pos, (Stroke) {
 				1.0f,
 				WHITE,
 				0
@@ -474,7 +477,7 @@ void draw_preview(Context* context) {
 				rect.height = pos.y - last_point->y;
 				rect.y = last_point->y;
 			}
-			draw_rect(rect, (Stroke) {
+			inkpad_draw_rect(rect, (Stroke) {
 				1.0f,
 				WHITE,
 				0
@@ -567,24 +570,19 @@ void draw_preview(Context* context) {
 	}
 }
 
-void set_status_caption(char* buffer, int* timer, const char* message) {
-	strcpy(buffer, message);
-	*timer = DEFAULT_SLEEP_TIME;
+void inkpad_set_status_caption(Context* context, const char* message) {
+	strcpy(context->status_caption, message);
+	context->timer = DEFAULT_SLEEP_TIME;
 }
 
-void debug_text(char* txt, int x, int y) {
+void inkpad_debug_text(char* txt, int x, int y) {
 	DrawTextEx(global_font, txt, (Vector2) { x, y }, 20.0f, 1.0f, GREEN);
 }
 
-#define STATUS_TEXT_MAX_SIZE 128
-
-void draw_panel(
+void inkpad_draw_panel(
 	Context* context,
 	int window_width,
 	int window_height,
-	int* status_timer,
-	char* status_text,
-	Canvas pages[MAX_PAGES],
 	Color* color_options,
 	int n_color_options
 ) {
@@ -592,7 +590,7 @@ void draw_panel(
 	DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
 	// Show stroke information
 	DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-	show_stroke(context, PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
+	inkpad_show_stroke(context, PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 
 	// Messages
 	Vector2 size = MeasureTextEx(global_font, VERSION_NAME, 13.0f, 1.0f);
@@ -615,8 +613,8 @@ void draw_panel(
 	DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 	size_t len = n_color_options;
 	for (size_t i = 0; i < len; i++) {
-		bool selected = color_eq(context->s.color, color_options[i]);
-		draw_color_option(&bb, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20, selected, color_options[i]);
+		bool selected = inkpad_color_eq(context->s.color, color_options[i]);
+		inkpad_draw_color_option(&bb, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20, selected, color_options[i]);
 		if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			context->s.color = color_options[i];
 		}
@@ -626,31 +624,27 @@ void draw_panel(
 	// Draw page buttons
 	starting_pos += PANEL_PADDING;
 	DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-	for (size_t i = 0; i < MAX_PAGES; i++) {
-		draw_page_option(&bb, (size_t) context->current_page == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
+	for (size_t i = 0; i < context->n_pages; i++) {
+		inkpad_draw_page_option(&bb, (size_t) context->current_page == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
 		if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			context->current_page = i;
-			context->canvas = &pages[context->current_page];
-			set_status_caption(status_text, status_timer, TextFormat("Changed to page %d", context->current_page + 1));
+			context->canvas = &context->pages[context->current_page];
+			inkpad_set_status_caption(context, TextFormat("Changed to page %d", context->current_page + 1));
 		}
 	}
 	starting_pos += bb.width*MAX_PAGES;
 
 	// Status text
 	DrawTextEx(global_font, "Status", (Vector2) { starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-	DrawTextEx(global_font, status_text, (Vector2) { starting_pos + PANEL_PADDING + 5, window_height - PANEL_HEIGHT + PANEL_PADDING+25 }, window_width/100, 1.0f, GREEN);
+	DrawTextEx(global_font, context->status_caption, (Vector2) { starting_pos + PANEL_PADDING + 5, window_height - PANEL_HEIGHT + PANEL_PADDING+25 }, window_width/100, 1.0f, GREEN);
 	DrawRectangleLines(starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, window_width - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
 
-	if (*status_timer > 0) (*status_timer)--;
-	else memset(status_text, 0, STATUS_TEXT_MAX_SIZE);
-}
-
-double clamped_increment(double x, double inc, double min, double max) {
-    return ((x+inc) >= min && (x+inc) <= max)? inc : 0.0;
+	if (context->timer > 0) context->timer--;
+	else memset(context->status_caption, 0, MAX_TEXT_SIZE);
 }
 
 // Render canvas' cache texture on the screen
-void render_canvas(const Canvas* canvas, int x, int y) {
+void inkpad_render_canvas(const Canvas* canvas, int x, int y) {
 	Texture2D tex = canvas->cache.texture;
 	DrawTextureRec(
 		tex,
@@ -665,7 +659,7 @@ void render_canvas(const Canvas* canvas, int x, int y) {
 }
 
 // Redraw the canvas' elements into its cache texture if refresh is needed
-void refresh_canvas(Canvas* canvas) {
+void inkpad_refresh_canvas(Canvas* canvas) {
 	if (!canvas->redraw) return;
 	BeginTextureMode(canvas->cache);
 	ClearBackground(BLANK);
@@ -675,14 +669,14 @@ void refresh_canvas(Canvas* canvas) {
 		case ENTITY_PATH: {
 			if (entity.path.count <= 0) break;
 			for (size_t j = 0; j < entity.path.count - 1; j++) {
-				draw_path(entity.path.items[j], entity.path.items[j+1], entity.stroke);
+				inkpad_draw_path(entity.path.items[j], entity.path.items[j+1], entity.stroke);
 			}
 		} break;
 		case ENTITY_LINE: {
-			draw_line(entity.line.start, entity.line.end, entity.stroke);
+			inkpad_draw_line(entity.line.start, entity.line.end, entity.stroke);
 		} break;
 		case ENTITY_RECT: {
-			draw_rect(entity.rect.bb, entity.stroke);
+			inkpad_draw_rect(entity.rect.bb, entity.stroke);
 		} break;
 		case ENTITY_CIRCLE: {
 			DrawRing(entity.circle.center, entity.circle.radius, entity.circle.radius + entity.stroke.thick, 0, 360, 60, entity.stroke.color);
@@ -700,16 +694,217 @@ void refresh_canvas(Canvas* canvas) {
 	EndTextureMode();
 }
 
-int main(void) {
+bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) {
+	static Color color_options[] = { BLACK, WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
 
+	context->mouse_current_position = GetMousePosition();
+
+	inkpad_refresh_canvas(context->canvas);
+	
+	bool is_on_canvas = check_boundingbox(
+		(Rectangle) {
+			0, 0,
+			*window_width,
+			*window_height - (context->show_panel ? PANEL_HEIGHT : 0) - context->s.thick/2
+		},
+		context->mouse_current_position
+	);
+	if (is_on_canvas) {
+		inkpad_draw(context);
+	}
+
+	// Canvas rendered image drawing
+	ClearBackground(DEFAULT_BGCOLOR);
+	inkpad_render_canvas(context->canvas, 0, 0);
+	
+	if (context->canvas->redraw) {
+		inkpad_refresh_canvas(context->canvas);
+		inkpad_render_canvas(context->canvas, 0, 0);
+	}
+
+	if (context->show_panel) inkpad_draw_panel(
+		context,
+		*window_width,
+		*window_height,
+		color_options,
+		sizeof(color_options)/sizeof(Color)
+	);
+	
+	// Show Coordinates
+	char pos_text[32];
+	sprintf(pos_text, "X: %.2f Y: %.2f", context->mouse_current_position.x, context->mouse_current_position.y);
+	DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
+
+	// Page number
+	char page_number_text[16];
+	sprintf(page_number_text, "%zu/%d", context->current_page+1, MAX_PAGES);
+	int height = MeasureTextEx(global_font, page_number_text, 25.0f, 1.0f).y;
+	DrawTextEx(
+		global_font,
+		page_number_text,
+		(Vector2) {
+			PANEL_PADDING,
+			*window_height - (context->show_panel ? PANEL_HEIGHT : 0) - height - PANEL_PADDING
+		},
+		25.0f,
+		1.0f,
+		WHITE
+	);
+
+	// Input
+	if (!context->typing) {
+		// Thickness Operations
+		if (IsKeyPressed(KEY_ONE))   context->s.thick = DEFAULT_THICK;
+		if (IsKeyPressed(KEY_TWO))   context->s.thick = DEFAULT_THICK + 5.0f;
+		if (IsKeyPressed(KEY_THREE)) context->s.thick = DEFAULT_THICK + 10.0f;
+		if (IsKeyPressed(KEY_FOUR))  context->s.thick = DEFAULT_THICK + 15.0f;
+		if (IsKeyPressed(KEY_FIVE))  context->s.thick = DEFAULT_THICK + 20.0f;
+		if (IsKeyPressed(KEY_ZERO))  context->s.thick = DEFAULT_THICK/2;
+
+		// Fullscreen and window resizing
+		if (IsKeyPressed(KEY_F11)) {
+			context->show_panel = !context->show_panel;
+		}
+		
+		if (IsWindowResized()) {
+			*window_width = GetScreenWidth();
+			*window_height = GetScreenHeight();
+		}
+
+		// Quit and Cancel key
+		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Q)) return false;
+		if (context->cancel) inkpad_set_status_caption(context, "Action cancelled");
+
+		// Undo
+		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
+			if (inkpad_canvas_history_undo(context->canvas))
+				inkpad_set_status_caption(context, "Undid action");
+		}
+
+		// Redo
+		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y)) {
+			if (inkpad_canvas_history_redo(context->canvas))
+				inkpad_set_status_caption(context, "Redid action");
+		}
+		
+		// Change Thickness by Mouse wheel (LEFT ALT)
+		if (IsKeyDown(KEY_LEFT_ALT)) {
+			double wheel = GetMouseWheelMove() * 4;
+			context->s.thick += clamped_increment(context->s.thick, wheel, DEFAULT_THICK/2, DEFAULT_THICK+20.0);
+			Vector2 pos = (Vector2){context->mouse_current_position.x+context->s.thick/2, context->mouse_current_position.y};
+			inkpad_show_stroke_tooltip(pos, TextFormat("Thickness: %.2f", context->s.thick));
+		}
+
+		// Change color by Mouse wheel (TAB)
+		if (IsKeyDown(KEY_TAB)) {
+			int wheel = (int)GetMouseWheelMove();
+			size_t len = sizeof(color_options)/sizeof(Color);
+			Color color = context->s.color;
+			size_t index = 0;
+			for (size_t i = 0; i < len; i++) {
+				if (inkpad_color_eq(color, color_options[i])) {
+					index = i;
+				}
+			}
+			Vector2 pos = context->mouse_current_position;
+			size_t pad = context->s.thick/2;
+
+			size_t selected = (index-wheel);
+			inkpad_draw_color_option(NULL, pos.x + pad, pos.y + pad, false, color);					
+			context->s.color = color_options[selected <= len ? selected : len-1];
+		}
+
+		// Stroke smoothness by Mouse wheel
+		if (IsKeyDown(KEY_S) && context->mode == MODE_DRAW) {
+			double wheel = GetMouseWheelMove();
+			context->s.smoothness += clamped_increment(context->s.smoothness, wheel, 0, MAX_SMOOTH_LEASH_SIZE);
+			DrawCircleLinesV(context->mouse_current_position, context->s.smoothness, context->s.color);
+			Vector2 pos = (Vector2){context->mouse_current_position.x+context->s.smoothness, context->mouse_current_position.y};
+			inkpad_show_stroke_tooltip(pos, TextFormat("Smoothness: %.2f", (float)context->s.smoothness));
+		}
+		
+		// Quick erase
+		if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+		{ context->last_mode = context->mode;
+		  context->mode = MODE_ERASE;
+		  context->s.thick *= 2;
+	    }
+		if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
+		{ context->mode = context->last_mode;
+	      context->s.thick /= 2;
+		}
+
+		// Quick line
+	    if (IsKeyPressed(KEY_LEFT_SHIFT))
+	    { context->last_mode = context->mode;
+	      context->mode = MODE_LINE;
+	    }
+		if (IsKeyReleased(KEY_LEFT_SHIFT)) context->mode = context->last_mode;
+
+		// Modes
+		if (IsKeyPressed(KEY_A)) context->mode = MODE_DRAW;
+		if (IsKeyPressed(KEY_L)) context->mode = MODE_LINE;
+		if (IsKeyPressed(KEY_X)) {
+			if (IsKeyDown(KEY_LEFT_CONTROL)) {
+				inkpad_canvas_clear(context->canvas);
+				inkpad_set_status_caption(context, "Cleared screen");
+			} else {
+				context->mode = MODE_ERASE;
+			}
+		}
+		if (IsKeyPressed(KEY_SPACE)) context->mode = MODE_TEXT;
+		if (IsKeyPressed(KEY_R))     context->mode = MODE_RECT;
+		if (IsKeyPressed(KEY_C))     context->mode = MODE_CIRCLE;
+
+		// Page shortcuts
+		if (IsKeyPressed(KEY_PERIOD))
+		{ context->current_page = context->current_page < MAX_PAGES-1 ? context->current_page + 1 : context->current_page;
+	      context->canvas = &context->pages[context->current_page];
+	      inkpad_set_status_caption(context, TextFormat("Changed to page %d", context->current_page + 1));
+		}
+		if (IsKeyPressed(KEY_COMMA))
+		{ context->current_page = context->current_page > 0 ? context->current_page - 1 : context->current_page;
+	      context->canvas = &context->pages[context->current_page];
+	      inkpad_set_status_caption(context, TextFormat("Changed to page %d", context->current_page + 1));
+		}
+	}
+	
+	// Draw stroke preview
+	if (!is_on_canvas)
+		ShowCursor();
+	else {
+		HideCursor();
+		inkpad_draw_preview(context);
+	}
+
+	return true;
+}
+
+void inkpad_context_init(Context* context, size_t window_width, size_t window_height) {
+	context->s = (Stroke){
+		.thick = DEFAULT_THICK,
+		.color = GREEN,
+		.smoothness = DEFAULT_SMOOTH_LEASH_SIZE,
+	};
+	context->mode = MODE_DRAW;
+	static Canvas pages[MAX_PAGES] = {0};
+	for (size_t i = 0; i < MAX_PAGES; i++) {
+		pages[i] = (Canvas){ .cache = LoadRenderTexture(window_width, window_height), .redraw = false };
+	}
+	context->pages = pages;
+	context->n_pages = MAX_PAGES;
+	context->current_page = 0;
+	context->canvas = &context->pages[context->current_page];
+	context->show_panel = true;
+}
+
+int main(void) {
 	// Global context
 	static Context context = {0};	
 
-	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
-	
 	// Initialization
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
-	InitWindow(0, 0, "Inkpad");
+	InitWindow(0, 0, "Inkpad "VERSION);
 	SetTargetFPS(120);
 	SetExitKey(0);
 
@@ -717,233 +912,25 @@ int main(void) {
 	size_t window_height = GetScreenHeight();
 
 #ifdef DEBUG
+	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
 	TraceLog(LOG_INFO, "Window Width: %zu", window_width);
-	TraceLog(LOG_INFO, "sizeof(Entity) = %zu", sizeof(Entity));
-	TraceLog(LOG_INFO, "sizeof(Context) = %zu", sizeof(Context));
 	TraceLog(LOG_INFO, "Window Height: %zu", window_height);
 #endif
 
 	// Loading assets and configuration
 	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 100, NULL, 0);;;;;;
-	
-	// Context and canvas
-	context.s = (Stroke){
-		.thick = DEFAULT_THICK,
-		.color = GREEN,
-		.smoothness = DEFAULT_SMOOTH_LEASH_SIZE,
-	};
-	
-	context.mode = MODE_DRAW;
-	
-	Mode saved_mode = context.mode;
 
-	Canvas pages[MAX_PAGES] = {0};
-	for (size_t i = 0; i < MAX_PAGES; i++) {
-		pages[i] = (Canvas){ .cache = LoadRenderTexture(window_width, window_height), .redraw = false };
-	}
+	inkpad_context_init(&context, window_width, window_height);
 	
-	context.current_page = 0;
-	context.canvas = &pages[context.current_page];
-
-	// Interface
-	Color color_options[] = { BLACK, WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
-
-	char status_text[STATUS_TEXT_MAX_SIZE] = {0};
-	int status_timer = 0;
-	bool show_panel = true;
-
 	// Welcome message
-	set_status_caption(status_text, &status_timer, "Welcome to Inkpad. Press F11 to hide the Panel.");
+	inkpad_set_status_caption(&context, "Welcome to Inkpad. Press F11 to hide the Panel.");
 	
 	// Window
 	while (!WindowShouldClose()) {
-		refresh_canvas(context.canvas);
-
 		BeginDrawing();
-			// TraceLog(LOG_INFO, "History has %zu actions and its top is at %zu", context.canvas->history.count, context.canvas->history.top);
-			// TraceLog(LOG_INFO, "Canvas has count = %zu and start = %zu", context.canvas->count, context.canvas->start);
-		
-			context.mouse_current_position = GetMousePosition();
-			bool is_on_canvas = check_boundingbox(
-				(Rectangle) {
-					0, 0,
-					window_width,
-					window_height - (show_panel ? PANEL_HEIGHT : 0) - context.s.thick/2
-				},
-				context.mouse_current_position
-			);
-			if (is_on_canvas) {
-				draw(&context);
-			}
-
-			// Canvas rendered image drawing
-			ClearBackground(DEFAULT_BGCOLOR);
-			render_canvas(context.canvas, 0, 0);
-			
-			if (context.canvas->redraw) {
-				refresh_canvas(context.canvas);
-				render_canvas(context.canvas, 0, 0);
-			}
-
-			if (show_panel) draw_panel(
-				&context,
-				window_width,
-				window_height,
-				&status_timer,
-				status_text,
-				pages,
-				color_options,
-				sizeof(color_options)/sizeof(Color)
-			);
-			
-			// Show Coordinates
-			char pos_text[32];
-			sprintf(pos_text, "X: %.2f Y: %.2f", context.mouse_current_position.x, context.mouse_current_position.y);
-			DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
-
-			// Page number
-			char page_number_text[16];
-			sprintf(page_number_text, "%zu/%d", context.current_page+1, MAX_PAGES);
-			int height = MeasureTextEx(global_font, page_number_text, 25.0f, 1.0f).y;
-			DrawTextEx(
-				global_font,
-				page_number_text,
-				(Vector2) {
-					PANEL_PADDING,
-					window_height - (show_panel ? PANEL_HEIGHT : 0) - height - PANEL_PADDING
-				},
-				25.0f,
-				1.0f,
-				WHITE
-			);
-
-			// Input
-			if (!context.typing) {
-				// Thickness Operations
-				if (IsKeyPressed(KEY_ONE))   context.s.thick = DEFAULT_THICK;
-				if (IsKeyPressed(KEY_TWO))   context.s.thick = DEFAULT_THICK + 5.0f;
-				if (IsKeyPressed(KEY_THREE)) context.s.thick = DEFAULT_THICK + 10.0f;
-				if (IsKeyPressed(KEY_FOUR))  context.s.thick = DEFAULT_THICK + 15.0f;
-				if (IsKeyPressed(KEY_FIVE))  context.s.thick = DEFAULT_THICK + 20.0f;
-				if (IsKeyPressed(KEY_ZERO))  context.s.thick = DEFAULT_THICK/2;
-
-				// Fullscreen and window resizing
-				if (IsKeyPressed(KEY_F11)) {
-					show_panel = !show_panel;
-				}
-				
-				if (IsWindowResized()) {
-					window_width = GetScreenWidth();
-					window_height = GetScreenHeight();
-				}
-
-				// Quit and Cancel key
-				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Q)) break;
-				if (context.cancel) set_status_caption(status_text, &status_timer, "Action cancelled");
-
-				// Undo
-				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
-					if (canvas_history_undo(context.canvas))
-						set_status_caption(status_text, &status_timer, "Undid action");
-				}
-
-				// Redo
-				if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y)) {
-					if (canvas_history_redo(context.canvas))
-						set_status_caption(status_text, &status_timer, "Redid action");
-				}
-				
-				// Change Thickness by Mouse wheel (LEFT ALT)
-				if (IsKeyDown(KEY_LEFT_ALT)) {
-					double wheel = GetMouseWheelMove() * 4;
-					context.s.thick += clamped_increment(context.s.thick, wheel, DEFAULT_THICK/2, DEFAULT_THICK+20.0);
-					Vector2 pos = (Vector2){context.mouse_current_position.x+context.s.thick/2, context.mouse_current_position.y};
-					show_stroke_tooltip(pos, TextFormat("Thickness: %.2f", context.s.thick));
-				}
-
-				// Change color by Mouse wheel (TAB)
-				if (IsKeyDown(KEY_TAB)) {
-					int wheel = (int)GetMouseWheelMove();
-					size_t len = sizeof(color_options)/sizeof(Color);
-					Color color = context.s.color;
-					size_t index = 0;
-					for (size_t i = 0; i < len; i++) {
-						if (color_eq(color, color_options[i])) {
-							index = i;
-						}
-					}
-					Vector2 pos = context.mouse_current_position;
-					size_t pad = context.s.thick/2;
-
-					size_t selected = (index-wheel);
-					draw_color_option(NULL, pos.x + pad, pos.y + pad, false, color);					
-					context.s.color = color_options[selected <= len ? selected : len-1];
-				}
-
-				// Stroke smoothness by Mouse wheel
-				if (IsKeyDown(KEY_S) && context.mode == MODE_DRAW) {
-					double wheel = GetMouseWheelMove();
-					context.s.smoothness += clamped_increment(context.s.smoothness, wheel, 0, MAX_SMOOTH_LEASH_SIZE);
-					DrawCircleLinesV(context.mouse_current_position, context.s.smoothness, context.s.color);
-					Vector2 pos = (Vector2){context.mouse_current_position.x+context.s.smoothness, context.mouse_current_position.y};
-					show_stroke_tooltip(pos, TextFormat("Smoothness: %.2f", (float)context.s.smoothness));
-				}
-				
-				// Quick erase
-				if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
-				{ saved_mode = context.mode;
-				  context.mode = MODE_ERASE;
-				  context.s.thick *= 2;
-			    }
-				if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
-				{ context.mode = saved_mode;
-			      context.s.thick /= 2;
-				}
-
-				// Quick line
-			    if (IsKeyPressed(KEY_LEFT_SHIFT))
-			    { saved_mode = context.mode;
-			      context.mode = MODE_LINE;
-			    }
-				if (IsKeyReleased(KEY_LEFT_SHIFT)) context.mode = saved_mode;
-
-				// Modes
-				if (IsKeyPressed(KEY_A)) context.mode = MODE_DRAW;
-				if (IsKeyPressed(KEY_L)) context.mode = MODE_LINE;
-				if (IsKeyPressed(KEY_X)) {
-					if (IsKeyDown(KEY_LEFT_CONTROL)) {
-						canvas_clear(context.canvas);
-						set_status_caption(status_text, &status_timer, "Cleared screen");
-					} else {
-						context.mode = MODE_ERASE;
-					}
-				}
-				if (IsKeyPressed(KEY_SPACE)) context.mode = MODE_TEXT;
-				if (IsKeyPressed(KEY_R))     context.mode = MODE_RECT;
-				if (IsKeyPressed(KEY_C))     context.mode = MODE_CIRCLE;
-
-				// Page shortcuts
-				if (IsKeyPressed(KEY_PERIOD))
-				{ context.current_page = context.current_page < MAX_PAGES-1 ? context.current_page + 1 : context.current_page;
-			      context.canvas = &pages[context.current_page];
-			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.current_page + 1));
-				}
-				if (IsKeyPressed(KEY_COMMA))
-				{ context.current_page = context.current_page > 0 ? context.current_page - 1 : context.current_page;
-			      context.canvas = &pages[context.current_page];
-			      set_status_caption(status_text, &status_timer, TextFormat("Changed to page %d", context.current_page + 1));
-  				}
-			}
-			
-			// Draw stroke preview
-			if (!is_on_canvas)
-				ShowCursor();
-			else {
-				HideCursor();
-				draw_preview(&context);
-			}
+			bool _continue = inkpad_main(&context, &window_width, &window_height);
+			if (!_continue) break;
 		EndDrawing();
-		context.mouse_last_position = context.mouse_current_position;
 	}
 
 	CloseWindow();
