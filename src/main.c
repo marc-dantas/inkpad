@@ -108,6 +108,28 @@ void inkpad_canvas_add_entity(Canvas* canvas, Entity entity) {
 	canvas->redraw = true;
 }
 
+void inkpad_canvas_remove_entity(Canvas* canvas, size_t index) {
+	History* history = &canvas->history;
+	if (history->top < history->count) {
+		for (size_t i = history->top; i < history->count; i++) {
+			Action action = history->items[i];
+			if (action.kind == ACTION_ADD_ENTITY) {
+				TraceLog(LOG_INFO, "Deallocating unreachable entity #%zu", action.entity_index+1);
+				inkpad_entity_free(&canvas->items[action.entity_index]);
+			}
+		}
+		history->count = history->top;
+	}
+
+	canvas->items[index].deleted = true;
+	da_append(history, ((Action) {
+		.kind = ACTION_REMOVE_ENTITY,
+		.entity_index = index,
+	}));
+	history->top++;	
+	canvas->redraw = true;
+}
+
 void inkpad_canvas_clear(Canvas* canvas) {
 	History* history = &canvas->history;
 
@@ -140,6 +162,9 @@ bool inkpad_canvas_history_undo(Canvas* canvas) {
 	case ACTION_ADD_ENTITY: {
 		canvas->count--;
 	} break;
+	case ACTION_REMOVE_ENTITY: {
+		canvas->items[action.entity_index].deleted = false;
+	} break;
 	case ACTION_CLEAR: {
 		canvas->start = action.canvas_start;
 	} break;
@@ -155,6 +180,9 @@ bool inkpad_canvas_history_redo(Canvas* canvas) {
 	switch (action.kind) {
 	case ACTION_ADD_ENTITY: {
 		canvas->count++;
+	} break;
+	case ACTION_REMOVE_ENTITY: {
+		canvas->items[action.entity_index].deleted = true;
 	} break;
 	case ACTION_CLEAR: {
 		canvas->start = canvas->count;
@@ -464,9 +492,7 @@ void inkpad_draw(Context* context) {
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			size_t entity_index = 0;
 			if (inkpad_entity_collision(context, mouse_current_position, &entity_index)) {
-				Entity* to_erase = &context->canvas->items[entity_index];
-				to_erase->deleted = true;
-				context->canvas->redraw = true;
+				inkpad_canvas_remove_entity(context->canvas, entity_index);
 			}
 		}
 		break;

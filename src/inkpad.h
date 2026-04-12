@@ -48,6 +48,7 @@ typedef struct {
 
 typedef enum {
 	ACTION_ADD_ENTITY = 0,
+	ACTION_REMOVE_ENTITY,
 	ACTION_CLEAR
 } ActionKind;
 
