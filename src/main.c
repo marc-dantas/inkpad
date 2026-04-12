@@ -38,8 +38,35 @@
     } while (0)
 
 
+static Font global_font;
+
 double clamped_increment(double x, double inc, double min, double max) {
     return ((x+inc) >= min && (x+inc) <= max)? inc : 0.0;
+}
+
+bool inkpad_color_eq(Color a, Color b) {
+	return (a.r==b.r &&
+			a.g==b.g &&
+			a.b==b.b &&
+			a.a==b.a);
+}
+
+bool check_boundingbox(Rectangle bb, Vector2 pos) {
+    return (pos.x >= bb.x) &&
+           (pos.x <= bb.x + bb.width) &&
+           (pos.y >= bb.y) &&
+           (pos.y <= bb.y + bb.height);
+}
+
+float point_segment_distance(Vector2 p, Vector2 a, Vector2 b) {
+    Vector2 ab = { b.x - a.x, b.y - a.y };
+    Vector2 ap = { p.x - a.x, p.y - a.y };
+    float t = (ap.x * ab.x + ap.y * ab.y) / (ab.x * ab.x + ab.y * ab.y);
+    t = fmaxf(0.0f, fminf(1.0f, t));
+    Vector2 closest = { a.x + t * ab.x, a.y + t * ab.y };
+    float dx = p.x - closest.x;
+    float dy = p.y - closest.y;
+    return sqrtf(dx*dx + dy*dy);
 }
 
 void inkpad_entity_free(Entity* entity) {
@@ -137,15 +164,77 @@ bool inkpad_canvas_history_redo(Canvas* canvas) {
 	return true;
 }
 
-// I wish C had operator overloading...
-bool inkpad_color_eq(Color a, Color b) {
-	return (a.r==b.r &&
-			a.g==b.g &&
-			a.b==b.b &&
-			a.a==b.a);
+static inline Vector4 rectangle_to_absolute_points(Rectangle rect) {
+	Vector4 v = {0};
+
+	v.x = rect.x;
+	v.y = rect.y;
+	v.z = rect.x + rect.width;
+	v.w = rect.y + rect.height;
+	return v;
 }
 
-static Font global_font;
+bool inkpad_entity_collision(Context* context, Vector2 position, size_t* target) {
+	Canvas* canvas = context->canvas;
+	for (size_t i = canvas->start; i < canvas->count; i++) {
+		Entity entity = canvas->items[i];
+		if (entity.deleted) continue;
+		switch (entity.kind) {
+		case ENTITY_PATH: {
+			for (size_t j = 1; j < entity.path.count; j++) {
+				Vector2 a = entity.path.items[j-1];
+				Vector2 b = entity.path.items[j];
+				float d = point_segment_distance(position, a, b);
+				if (d <= entity.stroke.thick/2) {
+					*target = i;
+					return true;
+				}
+			}
+		} break;
+		case ENTITY_LINE: {
+			if (point_segment_distance(position, entity.line.start, entity.line.end) <= entity.stroke.thick/2) {
+				*target = i;
+				return true;
+			}
+		} break;
+		case ENTITY_RECT: {
+		    Rectangle inner = entity.rect.bb;
+			Rectangle outer = {
+		        entity.rect.bb.x - entity.stroke.thick/2,
+		        entity.rect.bb.y - entity.stroke.thick/2,
+		        entity.rect.bb.width  + entity.stroke.thick,
+		        entity.rect.bb.height + entity.stroke.thick,
+		    };
+		    if (check_boundingbox(outer, position) && !check_boundingbox(inner, position)) {
+		        *target = i;
+		        return true;
+		    }
+		} break;
+		case ENTITY_CIRCLE: {
+			size_t dist = Vector2Distance(position, entity.circle.center);
+			size_t r = entity.circle.radius;
+			if (dist <= r + entity.stroke.thick && dist >= r) {
+				*target = i;
+				return true;
+			}
+		} break;
+		case ENTITY_TEXT: {
+			Vector2 size = MeasureTextEx(global_font, entity.text.content, entity.stroke.thick * 2, 1.0f);
+			Rectangle bb = {
+				entity.text.position.x,
+				entity.text.position.y - entity.stroke.thick,
+				size.x,
+				size.y
+			};
+			if (check_boundingbox(bb, position)) {
+				*target = i;
+				return true;
+			}
+		} break;
+		}
+	}
+	return false;
+}
 
 void inkpad_draw_message(unsigned int x, unsigned int y, const char* text) {
 	DrawText(text, x, y, 25, WHITE);
@@ -234,13 +323,6 @@ void inkpad_draw_page_option(Rectangle* boundingbox, bool selected, int number, 
 	boundingbox->y = y;
 	boundingbox->width = 50;
 	boundingbox->height = 50;
-}
-
-bool check_boundingbox(Rectangle bb, Vector2 pos) {
-    return (pos.x >= bb.x) &&
-           (pos.x <= bb.x + bb.width) &&
-           (pos.y >= bb.y) &&
-           (pos.y <= bb.y + bb.height);
 }
 
 void inkpad_draw_path(Vector2 start, Vector2 end, Stroke s) {
@@ -380,11 +462,12 @@ void inkpad_draw(Context* context) {
 		break;
 	case MODE_ERASE:
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			inkpad_draw_path(mouse_last_position, mouse_current_position, (Stroke) {
-				s->thick,
-				DEFAULT_BGCOLOR,
-				DEFAULT_SMOOTH_LEASH_SIZE
-			});
+			size_t entity_index = 0;
+			if (inkpad_entity_collision(context, mouse_current_position, &entity_index)) {
+				Entity* to_erase = &context->canvas->items[entity_index];
+				to_erase->deleted = true;
+				context->canvas->redraw = true;
+			}
 		}
 		break;
 	case MODE_CIRCLE:
@@ -665,6 +748,7 @@ void inkpad_refresh_canvas(Canvas* canvas) {
 	ClearBackground(BLANK);
 	for (size_t i = canvas->start; i < canvas->count; i++) {
 		Entity entity = canvas->items[i];
+		if (entity.deleted) continue;
 		switch (entity.kind) {
 		case ENTITY_PATH: {
 			if (entity.path.count <= 0) break;
@@ -682,11 +766,11 @@ void inkpad_refresh_canvas(Canvas* canvas) {
 			DrawRing(entity.circle.center, entity.circle.radius, entity.circle.radius + entity.stroke.thick, 0, 360, 60, entity.stroke.color);
 		} break;
 		case ENTITY_TEXT: {
-			Vector2 text_pos = {
+			Vector2 offset_text_pos = {
 				entity.text.position.x,
 				entity.text.position.y - entity.stroke.thick
 			};
-			DrawTextEx(global_font, entity.text.content, text_pos, entity.stroke.thick * 2, 1.0f, entity.stroke.color);
+			DrawTextEx(global_font, entity.text.content, offset_text_pos, entity.stroke.thick * 2, 1.0f, entity.stroke.color);
 		} break;
 		}
 	}
@@ -876,7 +960,9 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 		HideCursor();
 		inkpad_draw_preview(context);
 	}
-
+	
+	context->mouse_last_position = context->mouse_current_position;
+	
 	return true;
 }
 

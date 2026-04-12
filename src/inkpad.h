@@ -84,6 +84,7 @@ typedef struct {
 		struct { Vector2   center;   size_t  radius;                 } circle;
 		struct { Vector2   position; char    content[MAX_TEXT_SIZE]; } text;
 	};
+	bool deleted;
 } Entity;
 
 //// Canvas ////
