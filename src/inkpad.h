@@ -78,6 +78,7 @@ typedef enum {
 typedef struct {
 	EntityKind kind;
 	Stroke     stroke;
+	Rectangle  bb;
 	union {
 		struct { da(Vector2);                                        } path;
 		struct { Vector2   start;    Vector2 end;                    } line;
