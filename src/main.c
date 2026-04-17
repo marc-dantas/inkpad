@@ -247,14 +247,7 @@ bool inkpad_entity_collision(Context* context, Vector2 position, size_t* target)
 			}
 		} break;
 		case ENTITY_TEXT: {
-			Vector2 size = MeasureTextEx(global_font, entity.text.content, entity.stroke.thick * 2, 1.0f);
-			Rectangle bb = {
-				entity.text.position.x,
-				entity.text.position.y - entity.stroke.thick,
-				size.x,
-				size.y
-			};
-			if (check_boundingbox(bb, position)) {
+			if (check_boundingbox(entity.bb, position)) {
 				*target = i;
 				return true;
 			}
@@ -386,7 +379,27 @@ void inkpad_draw(Context* context) {
 	switch (context->mode) {
 	case MODE_DRAW:
 		ent->kind = ENTITY_PATH;
-		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) entity_done = true;
+		
+		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+			Vector2 max = {0};
+			Vector2 min = {0};
+			for (size_t i = 0; i < ent->path.count; i++) {
+				Vector2 point = ent->path.items[i];
+				if (i == 0) min = point;
+				if (point.x >= max.x) max.x = point.x;
+				if (point.y >= max.y) max.y = point.y;
+				if (min.x >= point.x) min.x = point.x;
+				if (min.y >= point.y) min.y = point.y;
+			}
+			ent->bb = (Rectangle) {
+				min.x - ent->stroke.thick/2,
+				min.y - ent->stroke.thick/2,
+				max.x - min.x + ent->stroke.thick,
+				max.y - min.y + ent->stroke.thick,
+			};
+			entity_done = true;
+		}
+		
 		if (s->smoothness > 0) {
 			if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 				*last_point = mouse_current_position;
@@ -417,12 +430,19 @@ void inkpad_draw(Context* context) {
 		break;
 	case MODE_LINE:
 		ent->kind = ENTITY_LINE;
+		
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
 			*last_point = mouse_current_position;
 		
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
 			ent->line.start = *last_point;
 			ent->line.end = mouse_current_position;
+			ent->bb = (Rectangle) {
+				fminf(ent->line.start.x, ent->line.end.x) - ent->stroke.thick/2,
+				fminf(ent->line.start.y, ent->line.end.y) - ent->stroke.thick/2,
+				fmaxf(ent->line.start.x, ent->line.end.x) - fminf(ent->line.start.x, ent->line.end.x) + ent->stroke.thick,
+				fmaxf(ent->line.start.y, ent->line.end.y) - fminf(ent->line.start.y, ent->line.end.y) + ent->stroke.thick,
+			};
 			entity_done = true;
 		}
 		break;
@@ -456,6 +476,12 @@ void inkpad_draw(Context* context) {
 			}
 
 			ent->rect.bb = rect;
+			ent->bb = (Rectangle) {
+				rect.x - ent->stroke.thick/2 - 5,
+				rect.y - ent->stroke.thick/2 - 5,
+				rect.width + ent->stroke.thick + 10,
+				rect.height + ent->stroke.thick + 10,
+			};
 			entity_done = true;
 		}
 		break;
@@ -476,6 +502,13 @@ void inkpad_draw(Context* context) {
 			if (IsKeyPressed(KEY_ENTER)) {
 				ent->text.position = *last_point;
 				context->typing = false;
+				Vector2 size = MeasureTextEx(global_font, ent->text.content, ent->stroke.thick * 2, 1.0f);
+				ent->bb = (Rectangle) {
+					ent->text.position.x,
+					ent->text.position.y - ent->stroke.thick,
+					size.x,
+					size.y,
+				};
 				entity_done = true;
 			} else if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
 				int last = strlen(ent->text.content) > 0 ? strlen(ent->text.content)-1 : 0;
@@ -488,14 +521,14 @@ void inkpad_draw(Context* context) {
 			}
 		}
 		break;
-	case MODE_ERASE:
-		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			size_t entity_index = 0;
-			if (inkpad_entity_collision(context, mouse_current_position, &entity_index)) {
+	case MODE_ERASE: {
+		size_t entity_index = 0;
+		if (inkpad_entity_collision(context, mouse_current_position, &entity_index)) {
+			DrawRectangleLinesEx(context->canvas->items[entity_index].bb, 1.0f, WHITE);
+			if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
 				inkpad_canvas_remove_entity(context->canvas, entity_index);
-			}
 		}
-		break;
+	} break;
 	case MODE_CIRCLE:
 		ent->kind = ENTITY_CIRCLE;
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -512,6 +545,12 @@ void inkpad_draw(Context* context) {
 			c = sqrt(a*a + b*b);
 			ent->circle.center = *last_point;
 			ent->circle.radius = c;
+			ent->bb = (Rectangle) {
+				ent->circle.center.x - c - ent->stroke.thick,
+				ent->circle.center.y - c - ent->stroke.thick,
+				ent->circle.radius*2 + ent->stroke.thick*2,
+				ent->circle.radius*2 + ent->stroke.thick*2,
+			};
 			entity_done = true;
 		}
 		break;
