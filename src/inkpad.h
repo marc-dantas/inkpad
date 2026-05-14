@@ -76,15 +76,37 @@ typedef enum {
 } EntityKind;
 
 typedef struct {
+	da(Vector2);
+} EntityPath;
+
+typedef struct {
+	Vector2 start, end;
+} EntityLine;
+
+typedef struct {
+	Rectangle bb;
+} EntityRect;
+
+typedef struct {
+	Vector2 center;
+	size_t radius;
+} EntityCircle;
+
+typedef struct {
+	Vector2 position;
+	char content[MAX_TEXT_SIZE];
+} EntityText;
+
+typedef struct {
 	EntityKind kind;
 	Stroke     stroke;
 	Rectangle  bb;
 	union {
-		struct { da(Vector2);                                        } path;
-		struct { Vector2   start;    Vector2 end;                    } line;
-		struct { Rectangle bb;                                       } rect;
-		struct { Vector2   center;   size_t  radius;                 } circle;
-		struct { Vector2   position; char    content[MAX_TEXT_SIZE]; } text;
+		EntityPath path;
+		EntityLine line;
+		EntityRect rect;
+		EntityCircle circle;
+		EntityText text;
 	};
 	bool deleted;
 } Entity;

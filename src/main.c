@@ -69,6 +69,62 @@ float point_segment_distance(Vector2 p, Vector2 a, Vector2 b) {
     return sqrtf(dx*dx + dy*dy);
 }
 
+Rectangle inkpad_entity_calculate_bb(Entity entity) {
+	switch (entity.kind) {
+	case ENTITY_PATH: {
+		Vector2 max = {0};
+		Vector2 min = {0};
+		for (size_t i = 0; i < entity.path.count; i++) {
+			Vector2 point = entity.path.items[i];
+			if (i == 0) min = point;
+			if (point.x >= max.x) max.x = point.x;
+			if (point.y >= max.y) max.y = point.y;
+			if (min.x >= point.x) min.x = point.x;
+			if (min.y >= point.y) min.y = point.y;
+		}
+		return (Rectangle) {
+			min.x - entity.stroke.thick/2,
+			min.y - entity.stroke.thick/2,
+			max.x - min.x + entity.stroke.thick,
+			max.y - min.y + entity.stroke.thick,
+		};
+	} break;
+	case ENTITY_LINE: {
+		return (Rectangle) {
+			fminf(entity.line.start.x, entity.line.end.x) - entity.stroke.thick/2,
+			fminf(entity.line.start.y, entity.line.end.y) - entity.stroke.thick/2,
+			fmaxf(entity.line.start.x, entity.line.end.x) - fminf(entity.line.start.x, entity.line.end.x) + entity.stroke.thick,
+			fmaxf(entity.line.start.y, entity.line.end.y) - fminf(entity.line.start.y, entity.line.end.y) + entity.stroke.thick,
+		};
+	} break;
+	case ENTITY_RECT: {
+		return (Rectangle) {
+			entity.rect.bb.x - entity.stroke.thick/2 - 5,
+			entity.rect.bb.y - entity.stroke.thick/2 - 5,
+			entity.rect.bb.width + entity.stroke.thick + 10,
+			entity.rect.bb.height + entity.stroke.thick + 10,
+		};
+	} break;
+	case ENTITY_CIRCLE: {
+		return (Rectangle) {
+			entity.circle.center.x - entity.circle.radius - entity.stroke.thick,
+			entity.circle.center.y - entity.circle.radius - entity.stroke.thick,
+			entity.circle.radius*2 + entity.stroke.thick*2,
+			entity.circle.radius*2 + entity.stroke.thick*2,
+		};
+	} break;
+	case ENTITY_TEXT: {
+		Vector2 size = MeasureTextEx(global_font, entity.text.content, entity.stroke.thick * 2, 1.0f);
+		return (Rectangle) {
+			entity.text.position.x,
+			entity.text.position.y - entity.stroke.thick,
+			size.x,
+			size.y,
+		};
+	} break;
+	}
+}
+
 void inkpad_entity_free(Entity* entity) {
 	switch (entity->kind) {
 	case ENTITY_PATH: {
@@ -190,16 +246,6 @@ bool inkpad_canvas_history_redo(Canvas* canvas) {
 	}
 	canvas->redraw = true;
 	return true;
-}
-
-static inline Vector4 rectangle_to_absolute_points(Rectangle rect) {
-	Vector4 v = {0};
-
-	v.x = rect.x;
-	v.y = rect.y;
-	v.z = rect.x + rect.width;
-	v.w = rect.y + rect.height;
-	return v;
 }
 
 bool inkpad_entity_collision(Context* context, Vector2 position, size_t* target) {
@@ -379,24 +425,8 @@ void inkpad_draw(Context* context) {
 	switch (context->mode) {
 	case MODE_DRAW:
 		ent->kind = ENTITY_PATH;
-		
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-			Vector2 max = {0};
-			Vector2 min = {0};
-			for (size_t i = 0; i < ent->path.count; i++) {
-				Vector2 point = ent->path.items[i];
-				if (i == 0) min = point;
-				if (point.x >= max.x) max.x = point.x;
-				if (point.y >= max.y) max.y = point.y;
-				if (min.x >= point.x) min.x = point.x;
-				if (min.y >= point.y) min.y = point.y;
-			}
-			ent->bb = (Rectangle) {
-				min.x - ent->stroke.thick/2,
-				min.y - ent->stroke.thick/2,
-				max.x - min.x + ent->stroke.thick,
-				max.y - min.y + ent->stroke.thick,
-			};
+			ent->bb = inkpad_entity_calculate_bb(*ent);
 			entity_done = true;
 		}
 		
@@ -437,12 +467,7 @@ void inkpad_draw(Context* context) {
 		if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
 			ent->line.start = *last_point;
 			ent->line.end = mouse_current_position;
-			ent->bb = (Rectangle) {
-				fminf(ent->line.start.x, ent->line.end.x) - ent->stroke.thick/2,
-				fminf(ent->line.start.y, ent->line.end.y) - ent->stroke.thick/2,
-				fmaxf(ent->line.start.x, ent->line.end.x) - fminf(ent->line.start.x, ent->line.end.x) + ent->stroke.thick,
-				fmaxf(ent->line.start.y, ent->line.end.y) - fminf(ent->line.start.y, ent->line.end.y) + ent->stroke.thick,
-			};
+			ent->bb = inkpad_entity_calculate_bb(*ent);
 			entity_done = true;
 		}
 		break;
@@ -476,12 +501,7 @@ void inkpad_draw(Context* context) {
 			}
 
 			ent->rect.bb = rect;
-			ent->bb = (Rectangle) {
-				rect.x - ent->stroke.thick/2 - 5,
-				rect.y - ent->stroke.thick/2 - 5,
-				rect.width + ent->stroke.thick + 10,
-				rect.height + ent->stroke.thick + 10,
-			};
+			ent->bb = inkpad_entity_calculate_bb(*ent);
 			entity_done = true;
 		}
 		break;
@@ -502,13 +522,7 @@ void inkpad_draw(Context* context) {
 			if (IsKeyPressed(KEY_ENTER)) {
 				ent->text.position = *last_point;
 				context->typing = false;
-				Vector2 size = MeasureTextEx(global_font, ent->text.content, ent->stroke.thick * 2, 1.0f);
-				ent->bb = (Rectangle) {
-					ent->text.position.x,
-					ent->text.position.y - ent->stroke.thick,
-					size.x,
-					size.y,
-				};
+				ent->bb = inkpad_entity_calculate_bb(*ent);
 				entity_done = true;
 			} else if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
 				int last = strlen(ent->text.content) > 0 ? strlen(ent->text.content)-1 : 0;
@@ -545,12 +559,7 @@ void inkpad_draw(Context* context) {
 			c = sqrt(a*a + b*b);
 			ent->circle.center = *last_point;
 			ent->circle.radius = c;
-			ent->bb = (Rectangle) {
-				ent->circle.center.x - c - ent->stroke.thick,
-				ent->circle.center.y - c - ent->stroke.thick,
-				ent->circle.radius*2 + ent->stroke.thick*2,
-				ent->circle.radius*2 + ent->stroke.thick*2,
-			};
+			ent->bb = inkpad_entity_calculate_bb(*ent);
 			entity_done = true;
 		}
 		break;
