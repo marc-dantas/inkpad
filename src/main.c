@@ -1060,11 +1060,12 @@ void inkpad_context_init(Context* context, size_t window_width, size_t window_he
 
 int main(void) {
 	// Global context
-	static Context context = {0};	
+	static Context context = {0};
 
 	// Initialization
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
 	InitWindow(0, 0, "Inkpad "VERSION);
+	SetWindowMinSize(640, 480);
 	SetTargetFPS(120);
 	SetExitKey(0);
 
