@@ -138,9 +138,9 @@ void inkpad_entity_free(Entity* entity) {
 	}
 }
 
-void inkpad_canvas_add_entity(Canvas* canvas, Entity entity) {
+// gc: garbage-collect
+void inkpad_canvas_history_gc(Canvas* canvas) {
 	History* history = &canvas->history;
-
 	if (history->top < history->count) {
 		for (size_t i = history->top; i < history->count; i++) {
 			Action action = history->items[i];
@@ -151,6 +151,12 @@ void inkpad_canvas_add_entity(Canvas* canvas, Entity entity) {
 		}
 		history->count = history->top;
 	}
+}
+
+void inkpad_canvas_add_entity(Canvas* canvas, Entity entity) {
+	History* history = &canvas->history;
+
+	inkpad_canvas_history_gc(canvas);
 
 	size_t entity_index = canvas->count;
 	da_append(canvas, entity);
@@ -166,16 +172,8 @@ void inkpad_canvas_add_entity(Canvas* canvas, Entity entity) {
 
 void inkpad_canvas_remove_entity(Canvas* canvas, size_t index) {
 	History* history = &canvas->history;
-	if (history->top < history->count) {
-		for (size_t i = history->top; i < history->count; i++) {
-			Action action = history->items[i];
-			if (action.kind == ACTION_ADD_ENTITY) {
-				TraceLog(LOG_INFO, "Deallocating unreachable entity #%zu", action.entity_index+1);
-				inkpad_entity_free(&canvas->items[action.entity_index]);
-			}
-		}
-		history->count = history->top;
-	}
+	
+	inkpad_canvas_history_gc(canvas);
 
 	canvas->items[index].deleted = true;
 	da_append(history, ((Action) {
@@ -189,26 +187,17 @@ void inkpad_canvas_remove_entity(Canvas* canvas, size_t index) {
 void inkpad_canvas_clear(Canvas* canvas) {
 	History* history = &canvas->history;
 
-	if (history->top < history->count) {
-		for (size_t i = history->top; i < history->count; i++) {
-			Action action = history->items[i];
-			if (action.kind == ACTION_ADD_ENTITY) {
-				TraceLog(LOG_INFO, "Deallocating unreachable entity #%zu", action.entity_index+1);
-				inkpad_entity_free(&canvas->items[action.entity_index]);
-			}
-		}
-		history->count = history->top;
-	}
-	
+	inkpad_canvas_history_gc(canvas);
+
 	da_append(history, ((Action) {
 		.kind = ACTION_CLEAR,
 		.canvas_start = canvas->start
 	}));
 	history->top++;
-	
 	canvas->start = canvas->count;
 	canvas->redraw = true;
 }
+
 
 bool inkpad_canvas_history_undo(Canvas* canvas) {
 	History* history = &canvas->history;
