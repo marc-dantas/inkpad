@@ -947,7 +947,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 	);
 
 	// Input
-	if (!context->typing) {
+	if (!context->typing && is_on_canvas) {
 		// Thickness Operations
 		if (IsKeyPressed(KEY_ONE))   context->s.thick = DEFAULT_THICK;
 		if (IsKeyPressed(KEY_FIVE))  context->s.thick = MAXIMUM_THICK;
@@ -979,7 +979,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 		if (IsKeyDown(KEY_LEFT_ALT)) {
 			double wheel = GetMouseWheelMove() * 4;
 			context->s.thick += clamped_increment(context->s.thick, wheel, MINIMUM_THICK, MAXIMUM_THICK);
-			Vector2 pos = (Vector2){context->mouse_current_position.x+context->s.thick/2, context->mouse_current_position.y};
+			Vector2 pos = (Vector2){context->mouse_current_position.x, context->mouse_current_position.y};
 			char* title = "Thickness";
 			switch (context->mode) {
 			case MODE_TEXT: {
@@ -1013,7 +1013,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 			double wheel = GetMouseWheelMove();
 			context->s.smoothness += clamped_increment(context->s.smoothness, wheel, 0, MAX_SMOOTH_LEASH_SIZE);
 			DrawCircleLinesV(context->mouse_current_position, context->s.smoothness, context->s.color);
-			Vector2 pos = (Vector2){context->mouse_current_position.x+context->s.smoothness, context->mouse_current_position.y};
+			Vector2 pos = (Vector2){context->mouse_current_position.x, context->mouse_current_position.y};
 			inkpad_show_stroke_tooltip(pos, "Smooth stroke", TextFormat("%i Px", context->s.smoothness));
 		}
 		
