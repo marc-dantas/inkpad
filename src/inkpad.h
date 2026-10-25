@@ -3,12 +3,14 @@
 
 // General constants
 #define DEFAULT_BGCOLOR           (Color){ 15, 15, 15, 255 }
-#define PANEL_BGCOLOR             (Color){ 18, 18, 18, 130 }
-#define PANEL_PADDING             15         // Gap between elements inside the panel (pixels)
+#define PANEL_BGCOLOR             (Color){ 50, 50, 50, 130 }
+#define COLOR_OPTIONS             { BLACK, WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE }
+#define PANEL_PADDING             8          // Gap between elements inside the panel (pixels)
 #define DEFAULT_THICK             8.0f       // Default thickness of stroke
+#define MINIMUM_THICK             1.0f
+#define MAXIMUM_THICK             (DEFAULT_THICK*5)
 #define PANEL_HEIGHT              90         // Height of the panel (pixels)
 #define MAX_PAGES                 5          // Number of pages
-#define DEFAULT_SLEEP_TIME        240        // Time (in frames) to show a caption in status
 #define CANCEL_KEY                KEY_ESCAPE // Key to press to cancel action
 #define DEFAULT_SMOOTH_LEASH_SIZE 4          // How long (delayed) is the pen in draw stroke mode (in pixels).
                                              // In other words, how much you have to drag the mouse to start drawing
@@ -129,7 +131,6 @@ typedef struct {
 	bool    show_panel;                    // Show panel (toggle w/ F11)
 	size_t  timer;                         // General-purpose timer
 	size_t  current_page;                  // Index of the current page selected
-	char    status_caption[MAX_TEXT_SIZE]; // Status message/caption
 	Mode    last_mode;                     // Last mode
 	Mode    mode;                          // Current mode
 	Canvas* canvas;                        // Current canvas object

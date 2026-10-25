@@ -296,89 +296,100 @@ void inkpad_draw_message(unsigned int x, unsigned int y, const char* text) {
 	DrawText(text, x, y, 25, WHITE);
 }
 
-void inkpad_show_stroke_tooltip(Vector2 position, const char* text) {
-	Vector2 text_size = MeasureTextEx(global_font, text, 17.0f, 1.0f);
-	int pad = 12;
+void inkpad_show_stroke_tooltip(Vector2 position, const char* title, const char* text) {
+	Vector2 title_size = MeasureTextEx(global_font, title, 24.0f, 1.0f);
+	Vector2 text_size = MeasureTextEx(global_font, text, 20.0f, 1.0f);
+	int biggest_width = title_size.x >= text_size.x ? title_size.x : text_size.x;
+	int pad = 5;
 	Rectangle frame = (Rectangle){
 		position.x,
 		position.y,
-		text_size.x + pad*2,
-		text_size.y + pad*2
+		biggest_width + pad*2,
+		pad + title_size.y + text_size.y + pad
 	};
-	Vector2 text_position = {
+	Vector2 title_position = {
 		position.x + pad,
 		position.y + pad,
 	};
-	DrawRectangleLinesEx(frame, 1.0f, GRAY);
-	DrawTextEx(global_font, text, text_position, 17.0f, 1.0f, GRAY);
+	Vector2 text_position = {
+		position.x + pad,
+		position.y + title_size.y + pad,
+	};
+	DrawRectangleLinesEx(frame, 2.0f, GRAY);
+	DrawTextEx(global_font, title, title_position, 24.0f, 1.0f, WHITE);
+	DrawTextEx(global_font, text, text_position, 20.0f, 1.0f, GRAY);
 }
 
-void inkpad_show_stroke(Context* context, unsigned int x, unsigned int y) {
+void inkpad_draw_basic_metadata(Context* context, Rectangle* bb) {
 	int w = 50;
 	int h = 50;
+	int x = bb->x;
+	int y = bb->y;
 	Stroke* s = &context->s;
-	DrawTextEx(global_font, "MODE", (Vector2) { x + w + 5, y }, 15.0f, 1.0f, GRAY);
-	Vector2 texpos = (Vector2) { x + w + 5, y+10 };
+	DrawTextEx(global_font, "MODE", (Vector2) { x, y }, 18.0f, 1.0f, GRAY);
+	y += 18;
+	Vector2 texpos = (Vector2) { x + w + 5, y };
 	char* text = "Unknown";
+	char* extra = "";
+	DrawRectangleLines(x, y, w, h, GRAY);
 	switch (context->mode) {
 	case MODE_DRAW: {
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		text = "Draw";
+		extra = s->smoothness > 0 ? "Smooth stroke" : "";
 	} break;
 	case MODE_LINE: {
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 		text = "Line";
+		extra = TextFormat("%.0f Px", s->thick);
 	} break;
 	case MODE_ERASE: {
 		DrawCircleLines(x + w/2, y + h/2, s->thick/2, s->color);
 		DrawCircleLines(x + w/2, y + h/2, s->thick/2+4, s->color);
 		text = "Erase";
+		extra = TextFormat("%.0f Px", s->thick);
 	} break;
 	case MODE_TEXT: {
-		int text_size = s->thick*2;
+		int text_size = 50;
 		Vector2 size = MeasureTextEx(global_font, "Aa", text_size, 1.0f);
 		DrawRectangleLines(x, y, w, h, s->color);
 		DrawTextEx(global_font, "Aa", (Vector2) { x + w/2 - size.x/2, y + h/2 - size.y/2 }, text_size, 1.0f, s->color);
 		text = "Text";
+		extra = TextFormat("%.0f Px", s->thick*2);
 	} break;
 	case MODE_RECT: {
 		DrawRectangle(x + w/2 - s->thick/2, y + h/2 - s->thick/2, s->thick, s->thick, s->color);
 		DrawRectangleLines(x + w/2 - s->thick/2 - 4, y + h/2 - s->thick/2 - 4, s->thick + 8, s->thick + 8, s->color);
 		text = "Rect";
+		extra = TextFormat("%.0f Px", s->thick);
 	} break;
 	case MODE_CIRCLE: {
 		DrawCircleV((Vector2) { x + w/2, y + h/2 }, s->thick/2, s->color);
 		text = "Circle";
+		extra = TextFormat("%.0f Px", s->thick);
 	} break;
 	}
 	DrawTextEx(global_font, text, texpos, 30.0f, 1.0f, WHITE);
+	DrawTextEx(global_font, extra, (Vector2) { texpos.x, texpos.y + 30 }, 19.0f, 1.0f, GRAY);
+	bb->x += w + 150;
 }
 
-void inkpad_draw_color_option(Rectangle* boundingbox, unsigned int x, unsigned int y, bool selected, Color color) {
-	Rectangle rec = (Rectangle){
-		x, y, 50, 50
-	};
-	DrawRectangle(rec.x, rec.y, rec.width, rec.height, color);
-	DrawRectangleLinesEx(rec, selected ? 4.0f : 1.0f, WHITE);
-	if (boundingbox) {
-		boundingbox->x      = rec.x;
-		boundingbox->y      = rec.y;
-		boundingbox->width  = rec.width;
-		boundingbox->height = rec.height;
-	}
+void inkpad_draw_color_option(Rectangle dimensions, bool selected, Color color) {
+	DrawRectangle(dimensions.x, dimensions.y, dimensions.width, dimensions.height, color);
+	DrawRectangleLinesEx(dimensions, selected ? 4.0f : 1.0f, WHITE);
 }
 
-void inkpad_draw_page_option(Rectangle* boundingbox, bool selected, int number, unsigned int x, unsigned int y) {
-	if (selected) DrawRectangle(x, y, 50, 50, (Color) { 10, 230, 10, 255 });
-	DrawRectangleLines(x-1, y-1, 52, 52, WHITE);
+void inkpad_draw_page_option(Rectangle bb, bool selected, int number) {
+	int x = bb.x;
+	int y = bb.y;
+	int w = bb.width;
+	int h = bb.height;
+	if (selected) DrawRectangle(x, y, w, h, (Color) { 10, 230, 10, 255 });
+	DrawRectangleLines(x-1, y-1, w + 2, h + 2, WHITE);
 	char text[2];
 	sprintf(text, "%d", number);
 	DrawTextEx(global_font, text, (Vector2) { x+5, y+5 }, 21.0f, 1.0f, WHITE);
-	boundingbox->x = x;
-	boundingbox->y = y;
-	boundingbox->width = 50;
-	boundingbox->height = 50;
 }
 
 void inkpad_draw_path(Vector2 start, Vector2 end, Stroke s) {
@@ -716,11 +727,6 @@ void inkpad_draw_preview(Context* context) {
 	}
 }
 
-void inkpad_set_status_caption(Context* context, const char* message) {
-	strcpy(context->status_caption, message);
-	context->timer = DEFAULT_SLEEP_TIME;
-}
-
 void inkpad_debug_text(char* txt, int x, int y) {
 	DrawTextEx(global_font, txt, (Vector2) { x, y }, 20.0f, 1.0f, GREEN);
 }
@@ -733,60 +739,48 @@ void inkpad_draw_panel(
 	int n_color_options
 ) {
 	DrawRectangle(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, PANEL_BGCOLOR);
-	DrawRectangleLines(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, GRAY);
-	// Show stroke information
-	DrawTextEx(global_font, "Stroke", (Vector2) { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-	inkpad_show_stroke(context, PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
-
-	// Messages
-	Vector2 size = MeasureTextEx(global_font, VERSION_NAME, 13.0f, 1.0f);
+	
+	// Version Information
+	Vector2 size = MeasureTextEx(global_font, VERSION_NAME, 15.0f, 1.0f);
 	DrawTextEx(
 		global_font,
 		VERSION_NAME,
 		(Vector2) {
-			window_width-size.x-PANEL_PADDING,
-			window_height-100+PANEL_PADDING
+			window_width-size.x,
+			window_height-size.y
 		},
-		13.0f,
+		15.0f,
 		1.0f,
 		GRAY
 	);
 	
+	Rectangle bb = { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING, 0, 0 };
+	inkpad_draw_basic_metadata(context, &bb);
+
+	Vector2 button_size = { 38, 38 };
+
 	// Color options
-	// BB means Bounding Box, not Bubble Gum! You bastard!
-	Rectangle bb = {0};
-	int starting_pos = PANEL_PADDING + bb.x + bb.width + 200;
-	DrawTextEx(global_font, "Colors", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-	size_t len = n_color_options;
-	for (size_t i = 0; i < len; i++) {
+	// BB means Bounding Box, not Bubble Gum! You bastard!	size_t len = n_color_options;
+	bb = (Rectangle) { bb.x, window_height - PANEL_HEIGHT/2 - button_size.y/2, button_size.x, button_size.y };
+	for (size_t i = 0; i < n_color_options; i++) {
 		bool selected = inkpad_color_eq(context->s.color, color_options[i]);
-		inkpad_draw_color_option(&bb, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20, selected, color_options[i]);
+		inkpad_draw_color_option(bb, selected, color_options[i]);
 		if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			context->s.color = color_options[i];
 		}
+		bb.x += bb.width;
 	}
-	starting_pos += bb.width*len;
+	
+	bb.x += PANEL_PADDING;
 
-	// Draw page buttons
-	starting_pos += PANEL_PADDING;
-	DrawTextEx(global_font, "Pages", (Vector2) { starting_pos, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
 	for (size_t i = 0; i < context->n_pages; i++) {
-		inkpad_draw_page_option(&bb, (size_t) context->current_page == i, i+1, starting_pos + bb.width*i, window_height - PANEL_HEIGHT + PANEL_PADDING+20);
+		inkpad_draw_page_option(bb, (size_t)context->current_page == i, i+1);
 		if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			context->current_page = i;
 			context->canvas = &context->pages[context->current_page];
-			inkpad_set_status_caption(context, TextFormat("Changed to page %d", context->current_page + 1));
 		}
+		bb.x += bb.width;
 	}
-	starting_pos += bb.width*MAX_PAGES;
-
-	// Status text
-	DrawTextEx(global_font, "Status", (Vector2) { starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING }, 17.0f, 1.0f, (Color) {210, 210, 210, 255});
-	DrawTextEx(global_font, context->status_caption, (Vector2) { starting_pos + PANEL_PADDING + 5, window_height - PANEL_HEIGHT + PANEL_PADDING+25 }, window_width/100, 1.0f, GREEN);
-	DrawRectangleLines(starting_pos + PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING+20, window_width - starting_pos - PANEL_PADDING*2, bb.height, WHITE);
-
-	if (context->timer > 0) context->timer--;
-	else memset(context->status_caption, 0, MAX_TEXT_SIZE);
 }
 
 // Render canvas' cache texture on the screen
@@ -842,7 +836,7 @@ void inkpad_refresh_canvas(Canvas* canvas) {
 }
 
 bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) {
-	static Color color_options[] = { BLACK, WHITE, BEIGE, RED, ORANGE, YELLOW, GREEN, LIME, SKYBLUE, BLUE, PURPLE };
+	static Color color_options[] = COLOR_OPTIONS;
 
 	context->mouse_current_position = GetMousePosition();
 
@@ -879,7 +873,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 	
 	// Show Coordinates
 	char pos_text[32];
-	sprintf(pos_text, "X: %.2f Y: %.2f", context->mouse_current_position.x, context->mouse_current_position.y);
+	sprintf(pos_text, "X: %.0f Y: %.0f", context->mouse_current_position.x, context->mouse_current_position.y);
 	DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
 
 	// Page number
@@ -902,11 +896,8 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 	if (!context->typing) {
 		// Thickness Operations
 		if (IsKeyPressed(KEY_ONE))   context->s.thick = DEFAULT_THICK;
-		if (IsKeyPressed(KEY_TWO))   context->s.thick = DEFAULT_THICK + 5.0f;
-		if (IsKeyPressed(KEY_THREE)) context->s.thick = DEFAULT_THICK + 10.0f;
-		if (IsKeyPressed(KEY_FOUR))  context->s.thick = DEFAULT_THICK + 15.0f;
-		if (IsKeyPressed(KEY_FIVE))  context->s.thick = DEFAULT_THICK + 20.0f;
-		if (IsKeyPressed(KEY_ZERO))  context->s.thick = DEFAULT_THICK/2;
+		if (IsKeyPressed(KEY_FIVE))  context->s.thick = MAXIMUM_THICK;
+		if (IsKeyPressed(KEY_ZERO))  context->s.thick = MINIMUM_THICK;
 
 		// Fullscreen and window resizing
 		if (IsKeyPressed(KEY_F11)) {
@@ -920,26 +911,28 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 
 		// Quit and Cancel key
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Q)) return false;
-		if (context->cancel) inkpad_set_status_caption(context, "Action cancelled");
 
 		// Undo
 		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z)) {
-			if (inkpad_canvas_history_undo(context->canvas))
-				inkpad_set_status_caption(context, "Undid action");
+			inkpad_canvas_history_undo(context->canvas);
 		}
 
 		// Redo
-		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y)) {
-			if (inkpad_canvas_history_redo(context->canvas))
-				inkpad_set_status_caption(context, "Redid action");
-		}
+		if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Y))
+			inkpad_canvas_history_redo(context->canvas);
 		
 		// Change Thickness by Mouse wheel (LEFT ALT)
 		if (IsKeyDown(KEY_LEFT_ALT)) {
 			double wheel = GetMouseWheelMove() * 4;
-			context->s.thick += clamped_increment(context->s.thick, wheel, DEFAULT_THICK/2, DEFAULT_THICK+20.0);
+			context->s.thick += clamped_increment(context->s.thick, wheel, MINIMUM_THICK, MAXIMUM_THICK);
 			Vector2 pos = (Vector2){context->mouse_current_position.x+context->s.thick/2, context->mouse_current_position.y};
-			inkpad_show_stroke_tooltip(pos, TextFormat("Thickness: %.2f", context->s.thick));
+			char* title = "Thickness";
+			switch (context->mode) {
+			case MODE_TEXT: {
+				title = "Font size";
+			} break;
+			}
+			inkpad_show_stroke_tooltip(pos, title, TextFormat("%.0f Px", context->s.thick));
 		}
 
 		// Change color by Mouse wheel (TAB)
@@ -957,7 +950,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 			size_t pad = context->s.thick/2;
 
 			size_t selected = (index-wheel);
-			inkpad_draw_color_option(NULL, pos.x + pad, pos.y + pad, false, color);					
+			inkpad_draw_color_option((Rectangle){pos.x + pad, pos.y + pad, 40, 40}, false, color);					
 			context->s.color = color_options[selected <= len ? selected : len-1];
 		}
 
@@ -967,7 +960,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 			context->s.smoothness += clamped_increment(context->s.smoothness, wheel, 0, MAX_SMOOTH_LEASH_SIZE);
 			DrawCircleLinesV(context->mouse_current_position, context->s.smoothness, context->s.color);
 			Vector2 pos = (Vector2){context->mouse_current_position.x+context->s.smoothness, context->mouse_current_position.y};
-			inkpad_show_stroke_tooltip(pos, TextFormat("Smoothness: %.2f", (float)context->s.smoothness));
+			inkpad_show_stroke_tooltip(pos, "Smooth stroke", TextFormat("%i Px", context->s.smoothness));
 		}
 		
 		// Quick erase
@@ -992,12 +985,10 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 		if (IsKeyPressed(KEY_A)) context->mode = MODE_DRAW;
 		if (IsKeyPressed(KEY_L)) context->mode = MODE_LINE;
 		if (IsKeyPressed(KEY_X)) {
-			if (IsKeyDown(KEY_LEFT_CONTROL)) {
+			if (IsKeyDown(KEY_LEFT_CONTROL))
 				inkpad_canvas_clear(context->canvas);
-				inkpad_set_status_caption(context, "Cleared screen");
-			} else {
+			else
 				context->mode = MODE_ERASE;
-			}
 		}
 		if (IsKeyPressed(KEY_SPACE)) context->mode = MODE_TEXT;
 		if (IsKeyPressed(KEY_R))     context->mode = MODE_RECT;
@@ -1007,12 +998,10 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 		if (IsKeyPressed(KEY_PERIOD))
 		{ context->current_page = context->current_page < MAX_PAGES-1 ? context->current_page + 1 : context->current_page;
 	      context->canvas = &context->pages[context->current_page];
-	      inkpad_set_status_caption(context, TextFormat("Changed to page %d", context->current_page + 1));
 		}
 		if (IsKeyPressed(KEY_COMMA))
 		{ context->current_page = context->current_page > 0 ? context->current_page - 1 : context->current_page;
 	      context->canvas = &context->pages[context->current_page];
-	      inkpad_set_status_caption(context, TextFormat("Changed to page %d", context->current_page + 1));
 		}
 	}
 	
@@ -1068,12 +1057,9 @@ int main(void) {
 #endif
 
 	// Loading assets and configuration
-	global_font = LoadFontFromMemory(".ttf", IBMPlexMono_SemiBold_ttf, IBMPlexMono_SemiBold_size, 100, NULL, 0);;;;;;
+	global_font = LoadFontFromMemory(".ttf", Inter_SemiBold_ttf, Inter_SemiBold_size, 100, NULL, 0);;;;;;
 
 	inkpad_context_init(&context, window_width, window_height);
-	
-	// Welcome message
-	inkpad_set_status_caption(&context, "Welcome to Inkpad. Press F11 to hide the Panel.");
 	
 	// Window
 	while (!WindowShouldClose()) {
