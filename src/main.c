@@ -380,15 +380,38 @@ void inkpad_draw_color_option(Rectangle dimensions, bool selected, Color color) 
 	DrawRectangleLinesEx(dimensions, selected ? 4.0f : 1.0f, WHITE);
 }
 
-void inkpad_draw_page_option(Rectangle bb, bool selected, int number) {
+void inkpad_draw_color_tooltip(Vector2 position, Vector2 color_dimensions, const char* title, Color color) {
+	Vector2 title_size = MeasureTextEx(global_font, title, 24.0f, 1.0f);
+	int biggest_width = title_size.x >= color_dimensions.x ? title_size.x : color_dimensions.x;
+	int pad = 5;
+	Rectangle frame = (Rectangle){
+		position.x,
+		position.y,
+		biggest_width + pad*2,
+		pad + title_size.y + color_dimensions.y + pad
+	};
+	Vector2 title_position = {
+		position.x + pad,
+		position.y + pad,
+	};
+	Rectangle color_rectangle = {
+		position.x + pad,
+		position.y + title_size.y + pad,
+		color_dimensions.x,
+		color_dimensions.y
+	};
+	DrawRectangleLinesEx(frame, 2.0f, GRAY);
+	DrawTextEx(global_font, title, title_position, 24.0f, 1.0f, WHITE);
+	inkpad_draw_color_option(color_rectangle, false, color);
+}
+
+void inkpad_draw_page_option(Rectangle bb, bool selected, const char* text) {
 	int x = bb.x;
 	int y = bb.y;
 	int w = bb.width;
 	int h = bb.height;
 	if (selected) DrawRectangle(x, y, w, h, (Color) { 10, 230, 10, 255 });
 	DrawRectangleLines(x-1, y-1, w + 2, h + 2, WHITE);
-	char text[2];
-	sprintf(text, "%d", number);
 	DrawTextEx(global_font, text, (Vector2) { x+5, y+5 }, 21.0f, 1.0f, WHITE);
 }
 
@@ -731,6 +754,22 @@ void inkpad_debug_text(char* txt, int x, int y) {
 	DrawTextEx(global_font, txt, (Vector2) { x, y }, 20.0f, 1.0f, GREEN);
 }
 
+
+void inkpad_pages_remove_ordered(Context* ctx, size_t index) {
+	UnloadRenderTexture(ctx->pages.items[index].cache);
+	for (size_t i = index+1; i < ctx->pages.count; i++) {
+		ctx->pages.items[i-1] = ctx->pages.items[i];
+	}
+	ctx->pages.count--;			
+}
+
+Canvas inkpad_create_canvas(void) {
+	return (Canvas){
+		.cache = LoadRenderTexture(GetScreenWidth(), GetScreenHeight()),
+		.redraw = false
+	};
+}
+
 void inkpad_draw_panel(
 	Context* context,
 	int window_width,
@@ -773,13 +812,29 @@ void inkpad_draw_panel(
 	
 	bb.x += PANEL_PADDING;
 
-	for (size_t i = 0; i < context->n_pages; i++) {
-		inkpad_draw_page_option(bb, (size_t)context->current_page == i, i+1);
-		if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			context->current_page = i;
-			context->canvas = &context->pages[context->current_page];
+	// Page options
+	for (size_t i = 0; i < context->pages.count; i++) {
+		inkpad_draw_page_option(bb, (size_t)context->current_page == i, TextFormat("%zu", i+1));
+		if (check_boundingbox(bb, context->mouse_current_position)) {
+			if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) { // right click to remove
+				if (context->pages.count > 1) {
+					inkpad_pages_remove_ordered(context, i);
+					if (context->current_page == i) {
+						context->current_page--;
+						context->canvas = &context->pages.items[context->current_page];
+					}
+				}
+			} else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+				context->current_page = i;
+				context->canvas = &context->pages.items[context->current_page];
+			}
 		}
 		bb.x += bb.width;
+	}
+	// Add page button
+	inkpad_draw_page_option(bb, false, "+");
+	if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+		da_append(&context->pages, inkpad_create_canvas());
 	}
 }
 
@@ -877,8 +932,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 	DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
 
 	// Page number
-	char page_number_text[16];
-	sprintf(page_number_text, "%zu/%d", context->current_page+1, MAX_PAGES);
+	char* page_number_text = TextFormat("%zu/%d", context->current_page+1, context->pages.count);
 	int height = MeasureTextEx(global_font, page_number_text, 25.0f, 1.0f).y;
 	DrawTextEx(
 		global_font,
@@ -950,7 +1004,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 			size_t pad = context->s.thick/2;
 
 			size_t selected = (index-wheel);
-			inkpad_draw_color_option((Rectangle){pos.x + pad, pos.y + pad, 40, 40}, false, color);					
+			inkpad_draw_color_tooltip((Vector2){pos.x, pos.y}, (Vector2){40, 40}, "Color", color);					
 			context->s.color = color_options[selected <= len ? selected : len-1];
 		}
 
@@ -996,12 +1050,13 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 
 		// Page shortcuts
 		if (IsKeyPressed(KEY_PERIOD))
-		{ context->current_page = context->current_page < MAX_PAGES-1 ? context->current_page + 1 : context->current_page;
-	      context->canvas = &context->pages[context->current_page];
+		{ int len = context->pages.count;
+		  context->current_page = context->current_page < len-1 ? context->current_page + 1 : context->current_page;
+	      context->canvas = &context->pages.items[context->current_page];
 		}
 		if (IsKeyPressed(KEY_COMMA))
 		{ context->current_page = context->current_page > 0 ? context->current_page - 1 : context->current_page;
-	      context->canvas = &context->pages[context->current_page];
+	      context->canvas = &context->pages.items[context->current_page];
 		}
 	}
 	
@@ -1025,14 +1080,14 @@ void inkpad_context_init(Context* context, size_t window_width, size_t window_he
 		.smoothness = DEFAULT_SMOOTH_LEASH_SIZE,
 	};
 	context->mode = MODE_DRAW;
-	static Canvas pages[MAX_PAGES] = {0};
-	for (size_t i = 0; i < MAX_PAGES; i++) {
-		pages[i] = (Canvas){ .cache = LoadRenderTexture(window_width, window_height), .redraw = false };
+	static Pages pages = {0};
+	for (size_t i = 0; i < DEFAULT_N_PAGES; i++) {
+		Canvas c = inkpad_create_canvas();
+		da_append(&pages, c);
 	}
 	context->pages = pages;
-	context->n_pages = MAX_PAGES;
 	context->current_page = 0;
-	context->canvas = &context->pages[context->current_page];
+	context->canvas = &context->pages.items[context->current_page];
 	context->show_panel = true;
 }
 

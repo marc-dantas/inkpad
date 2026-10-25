@@ -10,7 +10,7 @@
 #define MINIMUM_THICK             1.0f
 #define MAXIMUM_THICK             (DEFAULT_THICK*5)
 #define PANEL_HEIGHT              90         // Height of the panel (pixels)
-#define MAX_PAGES                 5          // Number of pages
+#define DEFAULT_N_PAGES           1          // Default number of pages on startup
 #define CANCEL_KEY                KEY_ESCAPE // Key to press to cancel action
 #define DEFAULT_SMOOTH_LEASH_SIZE 4          // How long (delayed) is the pen in draw stroke mode (in pixels).
                                              // In other words, how much you have to drag the mouse to start drawing
@@ -123,6 +123,10 @@ typedef struct {
 	bool            redraw;
 } Canvas;
 
+typedef struct {
+	da(Canvas);
+} Pages;
+
 //// Global Context ////
 
 typedef struct {
@@ -137,8 +141,7 @@ typedef struct {
 	Entity  current_entity;                // Current entity to be saved between frames
 	Stroke  s;                             // Current stroke state
 	Vector2 last_point;                    // Used to save the previous point clicked while holding LMB
-	Canvas* pages;                         // Pages pointer
-	size_t  n_pages;                       // Number of pages
+	Pages   pages;                         // Pages dynamic array
 	Vector2 mouse_last_position, mouse_current_position; // Auto-describing
 } Context;
 
