@@ -329,8 +329,8 @@ void inkpad_draw_basic_metadata(Context* context, Rectangle* bb) {
 	DrawTextEx(global_font, "MODE", (Vector2) { x, y }, 18.0f, 1.0f, GRAY);
 	y += 18;
 	Vector2 texpos = (Vector2) { x + w + 5, y };
-	char* text = "Unknown";
-	char* extra = "";
+	const char* text = "Unknown";
+	const char* extra = "";
 	DrawRectangleLines(x, y, w, h, GRAY);
 	switch (context->mode) {
 	case MODE_DRAW: {
@@ -801,7 +801,7 @@ void inkpad_draw_panel(
 	// Color options
 	// BB means Bounding Box, not Bubble Gum! You bastard!	size_t len = n_color_options;
 	bb = (Rectangle) { bb.x, window_height - PANEL_HEIGHT/2 - button_size.y/2, button_size.x, button_size.y };
-	for (size_t i = 0; i < n_color_options; i++) {
+	for (int i = 0; i < n_color_options; i++) {
 		bool selected = inkpad_color_eq(context->s.color, color_options[i]);
 		inkpad_draw_color_option(bb, selected, color_options[i]);
 		if (check_boundingbox(bb, context->mouse_current_position) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -932,7 +932,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 	DrawTextEx(global_font, pos_text, (Vector2) { 10, 10 }, 15.0f, 1.0f, WHITE);
 
 	// Page number
-	char* page_number_text = TextFormat("%zu/%d", context->current_page+1, context->pages.count);
+	const char* page_number_text = TextFormat("%zu/%d", context->current_page+1, context->pages.count);
 	int height = MeasureTextEx(global_font, page_number_text, 25.0f, 1.0f).y;
 	DrawTextEx(
 		global_font,
@@ -985,6 +985,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 			case MODE_TEXT: {
 				title = "Font size";
 			} break;
+			default: break;
 			}
 			inkpad_show_stroke_tooltip(pos, title, TextFormat("%.0f Px", context->s.thick));
 		}
@@ -1001,7 +1002,6 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 				}
 			}
 			Vector2 pos = context->mouse_current_position;
-			size_t pad = context->s.thick/2;
 
 			size_t selected = (index-wheel);
 			inkpad_draw_color_tooltip((Vector2){pos.x, pos.y}, (Vector2){40, 40}, "Color", color);					
@@ -1050,7 +1050,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 
 		// Page shortcuts
 		if (IsKeyPressed(KEY_PERIOD))
-		{ int len = context->pages.count;
+		{ size_t len = context->pages.count;
 		  context->current_page = context->current_page < len-1 ? context->current_page + 1 : context->current_page;
 	      context->canvas = &context->pages.items[context->current_page];
 		}
@@ -1073,7 +1073,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 	return true;
 }
 
-void inkpad_context_init(Context* context, size_t window_width, size_t window_height) {
+void inkpad_context_init(Context* context) {
 	context->s = (Stroke){
 		.thick = DEFAULT_THICK,
 		.color = GREEN,
@@ -1096,7 +1096,7 @@ int main(void) {
 	static Context context = {0};
 
 	// Initialization
-	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED | FLAG_MSAA_4X_HINT);
 	InitWindow(0, 0, "Inkpad "VERSION);
 	SetWindowMinSize(640, 480);
 	SetTargetFPS(120);
@@ -1114,7 +1114,7 @@ int main(void) {
 	// Loading assets and configuration
 	global_font = LoadFontFromMemory(".ttf", Inter_SemiBold_ttf, Inter_SemiBold_size, 100, NULL, 0);;;;;;
 
-	inkpad_context_init(&context, window_width, window_height);
+	inkpad_context_init(&context);
 	
 	// Window
 	while (!WindowShouldClose()) {
