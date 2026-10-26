@@ -127,6 +127,15 @@ typedef struct {
 	da(Canvas);
 } Pages;
 
+//// FXAA Shader for canvas ////
+
+typedef struct {
+	Shader shader;
+	
+	// shader variables
+	int resolution; // vec2
+} FXAAShader;
+
 //// Global Context ////
 
 typedef struct {
@@ -143,6 +152,7 @@ typedef struct {
 	Vector2 last_point;                    // Used to save the previous point clicked while holding LMB
 	Pages   pages;                         // Pages dynamic array
 	Vector2 mouse_last_position, mouse_current_position; // Auto-describing
+	FXAAShader fxaa;
 } Context;
 
 #endif

@@ -772,12 +772,10 @@ Canvas inkpad_create_canvas(void) {
 
 void inkpad_draw_panel(
 	Context* context,
-	int window_width,
-	int window_height,
 	Color* color_options,
 	int n_color_options
 ) {
-	DrawRectangle(0, window_height - PANEL_HEIGHT, window_width, PANEL_HEIGHT, PANEL_BGCOLOR);
+	DrawRectangle(0, GetScreenHeight() - PANEL_HEIGHT, GetScreenWidth(), PANEL_HEIGHT, PANEL_BGCOLOR);
 	
 	// Version Information
 	Vector2 size = MeasureTextEx(global_font, VERSION_NAME, 15.0f, 1.0f);
@@ -785,22 +783,22 @@ void inkpad_draw_panel(
 		global_font,
 		VERSION_NAME,
 		(Vector2) {
-			window_width-size.x,
-			window_height-size.y
+			GetScreenWidth()-size.x,
+			GetScreenHeight()-size.y
 		},
 		15.0f,
 		1.0f,
 		GRAY
 	);
 	
-	Rectangle bb = { PANEL_PADDING, window_height - PANEL_HEIGHT + PANEL_PADDING, 0, 0 };
+	Rectangle bb = { PANEL_PADDING, GetScreenHeight() - PANEL_HEIGHT + PANEL_PADDING, 0, 0 };
 	inkpad_draw_basic_metadata(context, &bb);
 
 	Vector2 button_size = { 38, 38 };
 
 	// Color options
 	// BB means Bounding Box, not Bubble Gum! You bastard!	size_t len = n_color_options;
-	bb = (Rectangle) { bb.x, window_height - PANEL_HEIGHT/2 - button_size.y/2, button_size.x, button_size.y };
+	bb = (Rectangle) { bb.x, GetScreenHeight() - PANEL_HEIGHT/2 - button_size.y/2, button_size.x, button_size.y };
 	for (int i = 0; i < n_color_options; i++) {
 		bool selected = inkpad_color_eq(context->s.color, color_options[i]);
 		inkpad_draw_color_option(bb, selected, color_options[i]);
@@ -839,8 +837,8 @@ void inkpad_draw_panel(
 }
 
 // Render canvas' cache texture on the screen
-void inkpad_render_canvas(const Canvas* canvas, int x, int y) {
-	Texture2D tex = canvas->cache.texture;
+void inkpad_render_canvas(const Context* context, int x, int y) {
+	Texture2D tex = context->canvas->cache.texture;
 	DrawTextureRec(
 		tex,
 		(Rectangle){
@@ -854,8 +852,13 @@ void inkpad_render_canvas(const Canvas* canvas, int x, int y) {
 }
 
 // Redraw the canvas' elements into its cache texture if refresh is needed
-void inkpad_refresh_canvas(Canvas* canvas) {
+void inkpad_refresh_canvas(Context* context) {
+	Canvas* canvas = context->canvas;
 	if (!canvas->redraw) return;
+
+	float resolution[] = { (float)canvas->cache.texture.width, (float)canvas->cache.texture.height };
+	SetShaderValue(context->fxaa.shader, context->fxaa.resolution, resolution, SHADER_UNIFORM_VEC2);
+	
 	BeginTextureMode(canvas->cache);
 	ClearBackground(BLANK);
 	for (size_t i = canvas->start; i < canvas->count; i++) {
@@ -887,21 +890,20 @@ void inkpad_refresh_canvas(Canvas* canvas) {
 		}
 	}
 	canvas->redraw = false;
+	EndBlendMode();
 	EndTextureMode();
 }
 
-bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) {
+bool inkpad_main(Context* context) {
 	static Color color_options[] = COLOR_OPTIONS;
 
 	context->mouse_current_position = GetMousePosition();
 
-	inkpad_refresh_canvas(context->canvas);
-	
 	bool is_on_canvas = check_boundingbox(
 		(Rectangle) {
 			0, 0,
-			*window_width,
-			*window_height - (context->show_panel ? PANEL_HEIGHT : 0) - context->s.thick/2
+			GetScreenWidth(),
+			GetScreenHeight() - (context->show_panel ? PANEL_HEIGHT : 0) - context->s.thick/2
 		},
 		context->mouse_current_position
 	);
@@ -911,17 +913,17 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 
 	// Canvas rendered image drawing
 	ClearBackground(DEFAULT_BGCOLOR);
-	inkpad_render_canvas(context->canvas, 0, 0);
-	
-	if (context->canvas->redraw) {
-		inkpad_refresh_canvas(context->canvas);
-		inkpad_render_canvas(context->canvas, 0, 0);
-	}
+
+	BeginShaderMode(context->fxaa.shader);
+		inkpad_render_canvas(context, 0, 0);
+		if (context->canvas->redraw) {
+			inkpad_refresh_canvas(context);
+			inkpad_render_canvas(context, 0, 0);
+		}
+	EndShaderMode();
 
 	if (context->show_panel) inkpad_draw_panel(
 		context,
-		*window_width,
-		*window_height,
 		color_options,
 		sizeof(color_options)/sizeof(Color)
 	);
@@ -939,7 +941,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 		page_number_text,
 		(Vector2) {
 			PANEL_PADDING,
-			*window_height - (context->show_panel ? PANEL_HEIGHT : 0) - height - PANEL_PADDING
+			GetScreenHeight() - (context->show_panel ? PANEL_HEIGHT : 0) - height - PANEL_PADDING
 		},
 		25.0f,
 		1.0f,
@@ -959,8 +961,7 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 		}
 		
 		if (IsWindowResized()) {
-			*window_width = GetScreenWidth();
-			*window_height = GetScreenHeight();
+			
 		}
 
 		// Quit and Cancel key
@@ -1073,6 +1074,14 @@ bool inkpad_main(Context* context, size_t* window_width, size_t* window_height) 
 	return true;
 }
 
+const char* inkpad_load_bytes_as_cstring(char* bytes, size_t size) {
+	char* data = malloc(size+1);
+	memcpy(data, bytes, size);
+	data[size] = 0;
+	// leaks memory but who cares am I right?
+	return (const char*)data;
+}
+
 void inkpad_context_init(Context* context) {
 	context->s = (Stroke){
 		.thick = DEFAULT_THICK,
@@ -1080,7 +1089,7 @@ void inkpad_context_init(Context* context) {
 		.smoothness = DEFAULT_SMOOTH_LEASH_SIZE,
 	};
 	context->mode = MODE_DRAW;
-	static Pages pages = {0};
+	Pages pages = {0};
 	for (size_t i = 0; i < DEFAULT_N_PAGES; i++) {
 		Canvas c = inkpad_create_canvas();
 		da_append(&pages, c);
@@ -1089,6 +1098,13 @@ void inkpad_context_init(Context* context) {
 	context->current_page = 0;
 	context->canvas = &context->pages.items[context->current_page];
 	context->show_panel = true;
+
+	// Loading FXAA shader
+	const char* glsl = inkpad_load_bytes_as_cstring(INKPAD_FILE_DATA_fxaa_fs, INKPAD_FILE_SIZE_fxaa_fs);
+	context->fxaa.shader = LoadShaderFromMemory(0, glsl);
+	context->fxaa.resolution = GetShaderLocation(context->fxaa.shader, "renderResolution");
+	float resolution[2] = { (float)GetScreenWidth(), (float)GetScreenHeight() };
+	SetShaderValue(context->fxaa.shader, context->fxaa.resolution, resolution, SHADER_UNIFORM_VEC2);
 }
 
 int main(void) {
@@ -1102,24 +1118,22 @@ int main(void) {
 	SetTargetFPS(120);
 	SetExitKey(0);
 
-	size_t window_width = GetScreenWidth();
-	size_t window_height = GetScreenHeight();
-
 #ifdef DEBUG
 	TraceLog(LOG_INFO, "HOME DIRECTORY: %s", INKPAD_HOME);
-	TraceLog(LOG_INFO, "Window Width: %zu", window_width);
-	TraceLog(LOG_INFO, "Window Height: %zu", window_height);
+	TraceLog(LOG_INFO, "Global context structure size: %d", sizeof(Context));
+#else
+	SetTraceLogLevel(LOG_NONE); 
 #endif
 
 	// Loading assets and configuration
-	global_font = LoadFontFromMemory(".ttf", Inter_SemiBold_ttf, Inter_SemiBold_size, 100, NULL, 0);;;;;;
+	global_font = LoadFontFromMemory(".ttf", INKPAD_FILE_DATA_Inter_SemiBold_ttf, INKPAD_FILE_SIZE_Inter_SemiBold_ttf, 90, NULL, 0);;;;;;
 
 	inkpad_context_init(&context);
 	
 	// Window
 	while (!WindowShouldClose()) {
 		BeginDrawing();
-			bool _continue = inkpad_main(&context, &window_width, &window_height);
+			bool _continue = inkpad_main(&context);
 			if (!_continue) break;
 		EndDrawing();
 	}
